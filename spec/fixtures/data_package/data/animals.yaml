@@ -1,0 +1,10 @@
+animals:
+  - name: "Lion"
+    type: "Mammal"
+    habitat: "Savannah"
+  - name: "Eagle"
+    type: "Bird"
+    habitat: "Mountains"
+  - name: "Shark"
+    type: "Fish"
+    habitat: "Ocean"

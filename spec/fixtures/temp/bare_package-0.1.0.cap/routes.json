@@ -1,0 +1,11 @@
+{
+  "routes": {
+    "routes": {
+      "/": "/content/index.html",
+      "/index": "/content/index.html",
+      "/index.html": "/content/index.html",
+      "/example.css": "/content/example.css",
+      "/example.js": "/content/example.js"
+    }
+  }
+}

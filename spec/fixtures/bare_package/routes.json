@@ -1,0 +1,9 @@
+{
+  "routes": {
+    "/": "index.html",
+    "/index": "index.html",
+    "/index.html": "index.html",
+    "/example.css": "example.css",
+    "/example.js": "example.js"
+  }
+}

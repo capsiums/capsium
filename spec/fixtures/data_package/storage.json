@@ -1,0 +1,10 @@
+{
+  "datasets": [
+    {
+      "name": "animals",
+      "source": "data/animals.yaml",
+      "format": "yaml",
+      "schema": "data/animals_schema.yaml"
+    }
+  ]
+}

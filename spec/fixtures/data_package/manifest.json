@@ -1,0 +1,7 @@
+{
+  "content": {
+    "index.html": "text/html",
+    "example.css": "text/css",
+    "example.js": "text/javascript"
+  }
+}

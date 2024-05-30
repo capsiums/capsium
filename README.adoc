@@ -1,0 +1,208 @@
+= Capsium
+
+Capsium: Common architecture for portable secure information interchange and
+unified management.
+
+Capsium is designed to facilitate the creation, management and deployment of
+content packages with ease.
+
+This gem provides a structured way to handle content, data, and metadata for
+various applications.
+
+== Installation
+
+To install the Capsium gem, add it to your Gemfile:
+
+[source,ruby]
+----
+gem 'capsium'
+----
+
+Then, run the following command to install it:
+
+[source,bash]
+----
+bundle install
+----
+
+Alternatively, you can install the gem directly using:
+
+[source,bash]
+----
+gem install capsium
+----
+
+== What is a Capsium package?
+
+A Capsium package is a structured collection of content, data, metadata, and routing information. It is designed to encapsulate all resources needed for a particular application or service in a well-organized format. A package typically includes:
+
+* **Content**: Static files like HTML, CSS, and JavaScript.
+* **Data**: Structured data files, such as YAML or JSON.
+* **Metadata**: Descriptive information about the package, such as its name, version, and dependencies.
+* **Routes**: Mapping of URLs to content or data endpoints.
+* **Storage**: Definitions for datasets and their sources, formats, and schemas.
+
+== What is a Capsium reactor?
+
+A Capsium reactor is a runtime environment that serves Capsium packages. It reads the package configuration and starts a server that can handle HTTP requests according to the routes defined in the package. The reactor ensures that the content and data within the package are served correctly, allowing for easy integration and deployment of packaged applications.
+
+== Packing a package
+
+To pack a package, you need to define the content, data, metadata, routes, and storage configurations. Once defined, you can use the Capsium command-line interface (CLI) to create and manage your packages.
+
+=== Using the command line
+
+Capsium provides a CLI to help you pack and manage your packages. Here are some common commands:
+
+[source,bash]
+----
+# TODO: Create a new package
+capsium package my_package
+
+# TODO: Add content to the package
+capsium package add content example.html example.css example.js
+
+# TODO: Add data to the package
+capsium package add data animals.yaml
+
+# TODO: Add metadata to the package
+capsium package add metadata name=sample_package version=0.1.0
+
+# TODO: Define routes for the package
+capsium package add route /=example.html /index=index.html /api/v1/data/animals={type:dataset,name:animals}
+
+# TODO: Define storage for the package
+capsium package add storage datasets=[{name:animals,source:data/animals.yaml,format:yaml,schema:data/animals_schema.yaml}]
+----
+
+== Starting a reactor on your package
+
+To start a Capsium reactor on your package, use the following command:
+
+[source,bash]
+----
+capsium reactor serve my_package.cap
+----
+
+This command will start a server that serves the content and data defined in your package. The server will listen for HTTP requests and respond according to the routes specified.
+
+== Programmatically managing packages
+
+You can also create, load, and use packages programmatically within your Ruby application.
+
+=== Creating packages
+
+[source,ruby]
+----
+require 'capsium'
+
+package = Capsium::Package.new(
+  name: 'sample_package',
+  version: '0.1.0',
+  content: {
+    'example.html' => 'text/html',
+    'example.css' => 'text/css',
+    'example.js' => 'application/javascript'
+  },
+  data: {
+    'animals.yaml' => {
+      'animals' => [
+        { 'name' => 'Lion', 'type' => 'Mammal', 'habitat' => 'Savannah' },
+        { 'name' => 'Eagle', 'type' => 'Bird', 'habitat' => 'Mountains' },
+        { 'name' => 'Shark', 'type' => 'Fish', 'habitat' => 'Ocean' }
+      ]
+    }
+  },
+  metadata: {
+    'name' => 'sample_package',
+    'version' => '0.1.0',
+    'dependencies' => {}
+  },
+  routes: {
+    '/' => 'example.html',
+    '/index' => 'index.html',
+    '/index.html' => 'index.html',
+    '/example.css' => 'example.css',
+    '/example.js' => 'example.js',
+    '/api/v1/data/animals' => { 'type' => 'dataset', 'name' => 'animals' }
+  },
+  storage: {
+    'datasets' => [
+      {
+        'name' => 'animals',
+        'source' => 'data/animals.yaml',
+        'format' => 'yaml',
+        'schema' => 'data/animals_schema.yaml'
+      }
+    ]
+  }
+)
+
+# Save the package to a file
+File.write('my_package.json', package.to_json(pretty: true))
+----
+
+=== Loading packages
+
+To load an existing package from a JSON file, you can use the `Capsium::Package.new(path)` method:
+
+[source,ruby]
+----
+require 'capsium'
+
+# Read the package file or folder
+package = Capsium::Package.new(path)
+
+# Inspect the loaded package
+puts package.inspect
+----
+
+=== Using packages in your program
+
+Once you have created or loaded a package, you can use it within your Ruby application to access its content, data, and other properties.
+
+[source,ruby]
+----
+# Accessing package metadata
+puts "Package Name: #{package.metadata['name']}"
+puts "Package Version: #{package.metadata['version']}"
+
+# Accessing content
+package.content.each do |filename, content_type|
+  puts "Content File: #{filename}, Content Type: #{content_type}"
+end
+
+# Accessing data
+animals_data = package.data['animals.yaml']
+puts "Animals Data: #{animals_data.inspect}"
+
+# Accessing routes
+package.routes.each do |route, destination|
+  puts "Route: #{route}, Destination: #{destination}"
+end
+
+# Accessing storage definitions
+package.storage['datasets'].each do |dataset|
+  puts "Dataset Name: #{dataset['name']}, Source: #{dataset['source']}, Format: #{dataset['format']}"
+end
+----
+
+== Contributing
+
+We welcome contributions to the Capsium gem. If you would like to contribute, please fork the repository and submit a pull request.
+
+=== Running tests
+
+To run the tests, use the following command:
+
+[source,bash]
+----
+rspec
+----
+
+== License
+
+Copyright Ribose.
+
+Capsium is released under the MIT License. See the LICENSE file for more details.
+
