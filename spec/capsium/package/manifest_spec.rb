@@ -6,13 +6,15 @@ require "capsium/package/manifest"
 
 RSpec.describe Capsium::Package::Manifest do
   let(:build_path) { Dir.mktmpdir }
-  let(:manifest_path) { File.join(build_path, "manifest_test") }
+  let(:manifest_path) { File.join(build_path, "manifest.json") }
   let(:manifest_data) do
-    { content: {
-      "index.html" => "text/html",
-      "example.css" => "text/css",
-      "example.js" => "text/javascript"
-    } }
+    {
+      content: [
+        { file: "index.html", mime: "text/html" },
+        { file: "example.css", mime: "text/css" },
+        { file: "example.js", mime: "text/javascript" }
+      ]
+    }
   end
   let(:manifest) { described_class.new(manifest_path) }
 
@@ -22,7 +24,7 @@ RSpec.describe Capsium::Package::Manifest do
 
   describe "#initialize" do
     it "loads the manifest data from the file" do
-      expect(manifest.content).to eq(manifest_data[:content])
+      expect(manifest.to_json).to eq(manifest_data.to_json)
     end
   end
 end

@@ -40,12 +40,12 @@ Gem::Specification.new do |spec|
   spec.add_dependency "mime-types"
   spec.add_dependency "rubyzip", "~>2.3.2"
   spec.add_dependency "scss_lint"
+  spec.add_dependency "shale"
   spec.add_dependency "sqlite3"
   spec.add_dependency "thor"
   spec.add_dependency "uglifier"
   spec.add_dependency "webrick"
   spec.add_dependency "yaml"
-  spec.add_dependency "shale"
 
   spec.add_development_dependency "pry", "~> 0.12.2"
   spec.add_development_dependency "rake", "~> 13.0"

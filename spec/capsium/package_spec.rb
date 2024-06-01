@@ -20,11 +20,11 @@ RSpec.describe Capsium::Package do
 
     let(:manifest_data) do
       {
-        content: {
-          "index.html" => "text/html",
-          "example.css" => "text/css",
-          "example.js" => "text/javascript"
-        }
+        content: [
+          { file: "example.css", mime: "text/css" },
+          { file: "example.js", mime: "text/javascript" },
+          { file: "index.html", mime: "text/html" },
+        ]
       }
     end
 
@@ -63,8 +63,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds manifest" do
-        content = package.manifest.as_json
-        expect(content).to eq(manifest_data)
+        content = package.manifest
+        expect(content.to_json).to eq(manifest_data.to_json)
       end
 
       it "builds routes" do
@@ -84,8 +84,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds manifest" do
-        content = package.manifest.as_json
-        expect(content).to eq(manifest_data)
+        content = package.manifest
+        expect(content.to_json).to eq(manifest_data.to_json)
       end
 
       it "builds routes" do
@@ -105,8 +105,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds manifest" do
-        content = package.manifest.as_json
-        expect(content).to eq(manifest_data)
+        content = package.manifest
+        expect(content.to_json).to eq(manifest_data.to_json)
       end
 
       it "builds routes" do
@@ -149,11 +149,11 @@ RSpec.describe Capsium::Package do
 
     let(:manifest_data) do
       {
-        content: {
-          "index.html" => "text/html",
-          "example.css" => "text/css",
-          "example.js" => "text/javascript"
-        }
+        content: [
+          { file: "example.css", mime: "text/css" },
+          { file: "example.js", mime: "text/javascript" },
+          { file: "index.html", mime: "text/html" },
+        ]
       }
     end
 
@@ -194,8 +194,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds manifest" do
-        content = package.manifest.as_json
-        expect(content).to eq(manifest_data)
+        content = package.manifest
+        expect(content.to_json).to eq(manifest_data.to_json)
       end
 
       it "builds routes" do
@@ -220,8 +220,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds manifest" do
-        content = package.manifest.as_json
-        expect(content).to eq(manifest_data)
+        content = package.manifest
+        expect(content.to_json).to eq(manifest_data.to_json)
       end
 
       it "builds routes" do
@@ -246,8 +246,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds manifest" do
-        content = package.manifest.as_json
-        expect(content).to eq(manifest_data)
+        content = package.manifest
+        expect(content.to_json).to eq(manifest_data.to_json)
       end
 
       it "builds routes" do

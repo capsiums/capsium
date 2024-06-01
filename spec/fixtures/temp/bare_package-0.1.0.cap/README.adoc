@@ -1,7 +1,0 @@
-spec/fixtures/bare_package/
-├── content/
-│   ├── example.html
-│   ├── example.css
-│   └── example.js
-├── metadata.json
-└── routes.json

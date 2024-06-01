@@ -3,47 +3,73 @@
 # lib/capsium/package/manifest.rb
 require "json"
 require "mime/types"
+require "shale"
 
 module Capsium
   class Package
     class Manifest
-      attr_reader :content
+      attr_accessor :path, :content_path, :data
 
       def initialize(path)
         @path = path
-        @content_path = File.join(File.dirname(path), "content")
-        @content = load_manifest || generate_manifest
-      end
+        @content_path = File.join(File.dirname(@path), "content")
 
-      def load_manifest
-        return unless File.exist?(@path)
-
-        manifest_data = JSON.parse(File.read(@path))
-        manifest_data["content"]
+        @data = if File.exist?(path)
+                  ManifestData.from_json(File.read(path))
+                else
+                  ManifestData.new(content: generate_manifest)
+                end
       end
 
       def generate_manifest
-        files = Dir[File.join(@content_path, "**", "*")].reject { |f| File.directory?(f) }
+        files = Dir[File.join(@content_path, "**", "*")].reject do |f|
+          File.directory?(f)
+        end
 
-        @content = files.each_with_object({}) do |file, hash|
-          relative_path = Pathname.new(file).relative_path_from(@content_path).to_s
-          mime_type = MIME::Types.type_for(file).first.content_type
-          hash[relative_path] = mime_type
+        files.sort.map do |file_path|
+          ManifestDataItem.new(
+            file: relative_path(file_path),
+            mime: mime_from_path(file_path)
+          )
         end
       end
 
-      def as_json
-        { content: content }
-      end
-
       def to_json(*_args)
-        JSON.pretty_generate(as_json)
+        @data.to_json
       end
 
       def save_to_file(output_path = @path)
         File.open(output_path, "w") do |file|
           file.write(to_json)
         end
+      end
+
+      private
+
+      def relative_path(path)
+        Pathname.new(path).relative_path_from(@content_path).to_s
+      end
+
+      def mime_from_path(path)
+        MIME::Types.type_for(path).first.content_type
+      end
+    end
+
+    class ManifestDataItem < Shale::Mapper
+      attribute :file, Shale::Type::String
+      attribute :mime, Shale::Type::String
+
+      json do
+        map "file", to: :file
+        map "mime", to: :mime
+      end
+    end
+
+    class ManifestData < Shale::Mapper
+      attribute :content, ManifestDataItem, collection: true
+
+      json do
+        map "content", to: :content
       end
     end
   end

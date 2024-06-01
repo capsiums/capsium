@@ -75,7 +75,10 @@ module Capsium
 
       def generate_routes_from_manifest
         routes = {}
-        @manifest.content.each_pair do |file_path, value|
+        @manifest.data.content.each do |data_item|
+          file_path = data_item.file
+          mime_type = data_item.mime
+
           routes[INDEX_ROUTE] = file_path if file_path == "index.html"
 
           routes["/#{clean_html_path(file_path)}"] = file_path if file_path =~ /\.html$/
