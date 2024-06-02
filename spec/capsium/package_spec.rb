@@ -13,7 +13,7 @@ RSpec.describe Capsium::Package do
     let(:content_dir) { File.join(package_path, "content") }
     let(:metadata_path) { File.join(package_path, "metadata.json") }
     let(:metadata_data) { { name: package_name, version: "0.1.0" } }
-    let(:metadata_data_dependencies) { {} }
+    let(:metadata_data_dependencies) { [] }
     let(:content_html) { "<html>  <body>    Hello    </body>  </html>" }
     let(:content_css) { "body { color: red; }" }
     let(:content_js) { "function test() { return true; }" }

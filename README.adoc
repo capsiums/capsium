@@ -116,7 +116,7 @@ package = Capsium::Package.new(
   metadata: {
     'name' => 'sample_package',
     'version' => '0.1.0',
-    'dependencies' => {}
+    'dependencies' => []
   },
   routes: {
     '/' => 'example.html',

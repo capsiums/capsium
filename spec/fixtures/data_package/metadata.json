@@ -1,6 +1,5 @@
 {
   "name": "data_package",
   "version": "0.1.0",
-  "dependencies": {
-  }
+  "dependencies": []
 }

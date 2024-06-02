@@ -1,38 +1,41 @@
 # frozen_string_literal: true
 
 # lib/capsium/package/metadata.rb
-require "json"
+require 'shale'
+require 'forwardable'
 
 module Capsium
   class Package
+    class Dependency < Shale::Mapper
+      attribute :name, Shale::Type::String
+      attribute :version, Shale::Type::String
+    end
+
+    class MetadataData < Shale::Mapper
+      attribute :name, Shale::Type::String
+      attribute :version, Shale::Type::String
+      attribute :dependencies, Dependency, collection: true
+    end
+
     class Metadata
-      attr_reader :name, :version, :dependencies
+      attr_reader :path, :data
+
+      extend Forwardable
+      def_delegator :@data, :name
+      def_delegator :@data, :version
+      def_delegator :@data, :dependencies
 
       def initialize(path)
         @path = path
-        @dir = File.dirname(path)
-        load_metadata
-      end
-
-      def load_metadata
-        return unless File.exist?(@path)
-
-        metadata_data = JSON.parse(File.read(@path))
-        @name = metadata_data["name"]
-        @version = metadata_data["version"]
-        @dependencies = metadata_data["dependencies"] || {}
-      end
-
-      def as_json
-        {
-          name: @name,
-          version: @version,
-          dependencies: @dependencies
-        }
+        @data = if File.exist?(path)
+                  MetadataData.from_json(File.read(path))
+                else
+                  MetadataData.new
+                end
       end
 
       def to_json(*_args)
-        JSON.pretty_generate(as_json)
+        @data.to_json
       end
 
       def save_to_file(output_path = @path)

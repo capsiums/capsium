@@ -71,7 +71,7 @@ File.write(File.join(base_dir, "manifest.json"), JSON.pretty_generate(manifest_d
 metadata_data = {
   "name": "sample_package",
   "version": "0.1.0",
-  "dependencies": {}
+  "dependencies": []
 }
 File.write(File.join(base_dir, "metadata.json"), JSON.pretty_generate(metadata_data))
 

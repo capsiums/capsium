@@ -15,7 +15,7 @@ RSpec.describe Capsium::Packager do
     {
       name: "sample_package",
       version: "0.1.0",
-      dependencies: {}
+      dependencies: []
     }
   end
 
@@ -58,7 +58,7 @@ RSpec.describe Capsium::Packager do
       {
         name: "sample_package",
         version: "0.1.0",
-        dependencies: {},
+        dependencies: [],
         compression: {
           algorithm: "zip",
           level: "best"
