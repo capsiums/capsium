@@ -1,13 +1,41 @@
 {
-  "routes": {
-    "/": "index.html",
-    "/index": "index.html",
-    "/index.html": "index.html",
-    "/example.css": "example.css",
-    "/example.js": "example.js",
-    "/api/v1/data/animals": {
-      "type": "dataset",
-      "name": "animals"
+  "routes": [
+    {
+      "path": "/",
+      "target": {
+        "file": "index.html"
+      }
+    },
+    {
+      "path": "/index",
+      "target": {
+        "file": "index.html"
+      }
+    },
+    {
+      "path": "/index.html",
+      "target": {
+        "file": "index.html"
+      }
+    },
+    {
+      "path": "/example.css",
+      "target": {
+        "file": "example.css"
+      }
+    },
+    {
+      "path": "/example.js",
+      "target": {
+        "file": "example.js"
+      }
+    },
+    {
+      "path": "/api/v1/data/animals",
+      "target": {
+        "type": "dataset",
+        "name": "animals"
+      }
     }
-  }
+  ]
 }

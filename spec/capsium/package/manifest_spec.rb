@@ -12,7 +12,7 @@ RSpec.describe Capsium::Package::Manifest do
       content: [
         { file: "index.html", mime: "text/html" },
         { file: "example.css", mime: "text/css" },
-        { file: "example.js", mime: "text/javascript" }
+        { file: "example.js", mime: "application/javascript" }
       ]
     }
   end

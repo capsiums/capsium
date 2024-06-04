@@ -2,7 +2,7 @@
 
 # lib/capsium/package/manifest.rb
 require "json"
-require "mime/types"
+require "marcel"
 require "shale"
 
 module Capsium
@@ -44,6 +44,14 @@ module Capsium
         end
       end
 
+      def path_to_content_file(path)
+        Pathname.new(@content_path).join(path)
+      end
+
+      def content_file_exists?(path)
+        File.exist?(path_to_content_file(path))
+      end
+
       private
 
       def relative_path(path)
@@ -51,7 +59,11 @@ module Capsium
       end
 
       def mime_from_path(path)
-        MIME::Types.type_for(path).first.content_type
+        Marcel::MimeType.for(
+          Pathname.new(path),
+          name: File.basename(path),
+          extension: File.extname(path)
+        )
       end
     end
 
@@ -59,18 +71,18 @@ module Capsium
       attribute :file, Shale::Type::String
       attribute :mime, Shale::Type::String
 
-      json do
-        map "file", to: :file
-        map "mime", to: :mime
-      end
+      # json do
+      #   map "file", to: :file
+      #   map "mime", to: :mime
+      # end
     end
 
     class ManifestData < Shale::Mapper
       attribute :content, ManifestDataItem, collection: true
 
-      json do
-        map "content", to: :content
-      end
+      # json do
+      #   map "content", to: :content
+      # end
     end
   end
 end

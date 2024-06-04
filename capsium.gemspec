@@ -37,7 +37,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "html-proofer"
   spec.add_dependency "json"
   spec.add_dependency "listen"
-  spec.add_dependency "mime-types"
+  spec.add_dependency "marcel"
   spec.add_dependency "rubyzip", "~>2.3.2"
   spec.add_dependency "scss_lint"
   spec.add_dependency "shale"

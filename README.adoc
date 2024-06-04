@@ -57,6 +57,9 @@ Capsium provides a CLI to help you pack and manage your packages. Here are some 
 [source,bash]
 ----
 # TODO: Create a new package
+# Full command
+capsium package new my_package
+# Shorthand
 capsium package my_package
 
 # TODO: Add content to the package
@@ -84,7 +87,29 @@ To start a Capsium reactor on your package, use the following command:
 capsium reactor serve my_package.cap
 ----
 
-This command will start a server that serves the content and data defined in your package. The server will listen for HTTP requests and respond according to the routes specified.
+== Packing a package
+
+To pack an existing Capsium package directory, use the following command:
+
+[source,bash]
+----
+capsium package pack [--force/-f] path-to-package
+----
+
+This command will pack your package into a single file with the
+filename:
+
+* `{package-name}-{package-version}.cap`
+* where the name and version both come from `{package-path}/metadata.json`
+
+.Sample `pack` command
+====
+[source,bash]
+----
+capsium package pack -f spec/fixtures/bare_package
+----
+====
+
 
 == Programmatically managing packages
 

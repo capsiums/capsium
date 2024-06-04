@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 # lib/capsium/package/metadata.rb
-require 'shale'
-require 'forwardable'
+require "shale"
+require "forwardable"
 
 module Capsium
   class Package

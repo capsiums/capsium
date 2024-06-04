@@ -29,9 +29,10 @@ RSpec.describe Capsium::Package::Metadata do
       expect(metadata.name).to eq("test_package")
       expect(metadata.version).to eq("0.1.0")
       expect(
-        JSON.parse(metadata.to_json, symbolize_names: true)[:dependencies]).to(
-          eq(metadata_data[:dependencies])
-        )
+        JSON.parse(metadata.to_json, symbolize_names: true)[:dependencies]
+      ).to(
+        eq(metadata_data[:dependencies])
+      )
     end
   end
 end

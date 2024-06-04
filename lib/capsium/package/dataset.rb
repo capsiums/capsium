@@ -8,7 +8,17 @@ require "sqlite3"
 
 module Capsium
   class Package
-    class Dataset
+    class Dataset < Shale::Mapper
+      # {
+      #   "datasets": [
+      #     {
+      #       "name": "animals",
+      #       "source": "data/animals.yaml",
+      #       "format": "yaml",
+      #       "schema": "data/animals_schema.yaml"
+      #     }
+      #   ]
+      # }
       attr_reader :name, :path, :type, :data
 
       def initialize(path, data_path)

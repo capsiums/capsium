@@ -22,21 +22,23 @@ RSpec.describe Capsium::Package do
       {
         content: [
           { file: "example.css", mime: "text/css" },
-          { file: "example.js", mime: "text/javascript" },
-          { file: "index.html", mime: "text/html" },
+          { file: "example.js", mime: "application/javascript" },
+          { file: "index.html", mime: "text/html" }
         ]
       }
     end
 
     let(:routes_data) do
       {
-        routes: {
-          "/" => "index.html",
-          "/index" => "index.html",
-          "/index.html" => "index.html",
-          "/example.css" => "example.css",
-          "/example.js" => "example.js"
-        }
+        routes: [
+          { path: "/", target: { file: "index.html" } },
+          { path: "/index", target: { file: "index.html" } },
+          { path: "/index.html", target: { file: "index.html" } },
+          { path: "/example.css", target: { file: "example.css" } },
+          { path: "/example.js", target: { file: "example.js" } }
+        ].sort_by do |r|
+          r[:path]
+        end
       }
     end
 
@@ -68,8 +70,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds routes" do
-        content = package.routes.as_json
-        expect(content).to eq(routes_data)
+        content = package.routes
+        expect(content.to_json).to eq(routes_data.to_json)
       end
     end
 
@@ -89,8 +91,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds routes" do
-        content = package.routes.as_json
-        expect(content).to eq(routes_data)
+        content = package.routes
+        expect(content.to_json).to eq(routes_data.to_json)
       end
     end
 
@@ -110,8 +112,8 @@ RSpec.describe Capsium::Package do
       end
 
       it "builds routes" do
-        content = package.routes.as_json
-        expect(content).to eq(routes_data)
+        content = package.routes
+        expect(content.to_json).to eq(routes_data.to_json)
       end
     end
 
@@ -151,22 +153,22 @@ RSpec.describe Capsium::Package do
       {
         content: [
           { file: "example.css", mime: "text/css" },
-          { file: "example.js", mime: "text/javascript" },
-          { file: "index.html", mime: "text/html" },
+          { file: "example.js", mime: "application/javascript" },
+          { file: "index.html", mime: "text/html" }
         ]
       }
     end
 
     let(:routes_data) do
       {
-        routes: {
-          "/" => "index.html",
-          "/index" => "index.html",
-          "/index.html" => "index.html",
-          "/example.css" => "example.css",
-          "/example.js" => "example.js",
-          "/api/v1/data/animals" => { "type" => "dataset", "name" => "animals" }
-        }
+        routes: [
+          { path: "/", target: { file: "index.html" } },
+          { path: "/index", target: { file: "index.html" } },
+          { path: "/index.html", target: { file: "index.html" } },
+          { path: "/example.css", target: { file: "example.css" } },
+          { path: "/example.js", target: { file: "example.js" } },
+          { path: "/api/v1/data/animals", target: { dataset: "animals" } }
+        ]
       }
     end
 
