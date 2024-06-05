@@ -29,8 +29,8 @@ module Capsium
     ENCRYPTED_PACKAGING_FILE = "package.enc"
 
     def initialize(path)
-      @original_path = path
-      @path = prepare_package(path)
+      @original_path = Pathname.new(path).expand_path
+      @path = prepare_package(@original_path)
       create_package_structure
       load_package
       @name = metadata.name
@@ -58,19 +58,40 @@ module Capsium
 
     def decompress_cap_file(file_path)
       temp_dir = Dir.mktmpdir
+      metadata_path = File.join(temp_dir, METADATA_FILE)
+
+      # Extract metadata.json first
+      Zip::File.open(file_path) do |zip_file|
+        if entry = zip_file.find_entry(METADATA_FILE)
+          entry.extract(metadata_path)
+        end
+      end
+
+      metadata = Metadata.new(metadata_path)
+      package_name = metadata.name
+      package_version = metadata.version
+      package_dependencies = metadata.dependencies
+
+      package_path = File.join(temp_dir, "#{package_name}-#{package_version}")
+      FileUtils.mkdir_p(package_path)
+
       Zip::File.open(file_path) do |zip_file|
         zip_file.each do |entry|
-          entry_path = File.join(temp_dir, entry.name)
+          entry_path = File.join(package_path, entry.name)
           FileUtils.mkdir_p(File.dirname(entry_path))
           entry.extract(entry_path)
         end
       end
-      temp_dir
+
+      package_path
     end
 
     def load_package
-      @manifest = Manifest.new(manifest_path)
+      # Mandatory
       @metadata = Metadata.new(metadata_path)
+
+      # Optional
+      @manifest = Manifest.new(manifest_path)
       @routes = Routes.new(routes_path, @manifest)
       @storage = Storage.new(storage_path)
       # @datasets = load_datasets

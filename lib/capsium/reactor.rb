@@ -28,15 +28,18 @@ module Capsium
     private
 
     def load_routes
-      @routes = @package.routes.routes
+      @routes = @package.routes.data.routes
     end
 
     def mount_routes
-      @routes.each do |route, target|
-        puts "mounting route: #{route} => #{target}"
-        @server.mount_proc(route.to_s) do |_req, res|
-          res.body = File.read(File.join(@package_path, target))
-          res.content_type = mime_type(target)
+      @routes.each do |route|
+        path = route.path
+        target = route.target
+        content_path = target.fs_path(@package.manifest)
+        puts "mounting route: #{path} => #{content_path}"
+        @server.mount_proc(path.to_s) do |_req, res|
+          res.body = File.read(content_path)
+          res.content_type = target.mime(@package.manifest)
         end
       end
     end
@@ -74,19 +77,6 @@ module Capsium
 
       # Wait for the server thread to finish
       @server_thread.join
-    end
-
-    def mime_type(path)
-      case File.extname(path)
-      when ".html"
-        "text/html"
-      when ".css"
-        "text/css"
-      when ".js"
-        "application/javascript"
-      else
-        "text/plain"
-      end
     end
   end
 end

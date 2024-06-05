@@ -12,6 +12,9 @@ module Capsium
 
       def initialize(path)
         @path = path
+        # This is {package-name}/content
+        # or
+        # /tmp/../content
         @content_path = File.join(File.dirname(@path), "content")
 
         @data = if File.exist?(path)
@@ -34,6 +37,12 @@ module Capsium
         end
       end
 
+      def lookup(filename)
+        @data.content.detect do |data_item|
+          data_item.file == filename
+        end
+      end
+
       def to_json(*_args)
         @data.to_json
       end
@@ -52,11 +61,11 @@ module Capsium
         File.exist?(path_to_content_file(path))
       end
 
-      private
-
       def relative_path(path)
         Pathname.new(path).relative_path_from(@content_path).to_s
       end
+
+      private
 
       def mime_from_path(path)
         Marcel::MimeType.for(
