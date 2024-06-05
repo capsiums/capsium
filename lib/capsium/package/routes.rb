@@ -123,7 +123,6 @@ module Capsium
         routes = RoutesData.new
         @manifest.data.content.each do |data_item|
           file_path = data_item.file
-          # mime_type = data_item.mime
           content_path = @manifest.path_to_content_file(file_path).to_s
 
           if file_path == DEFAULT_INDEX_TARGET
@@ -139,9 +138,10 @@ module Capsium
       end
 
       def clean_target_html_path(path)
-        File.dirname(path) + File.basename(path, ".html")
+        File.dirname(path) != "." ?
+          File.dirname(path) + File.basename(path, ".html") :
+          File.basename(path, ".html")
       end
-
 
       def validate_index_path(index_path)
         target_path = @manifest.path_to_content_file(index_path)
