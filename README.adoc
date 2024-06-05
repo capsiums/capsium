@@ -9,6 +9,29 @@ content packages with ease.
 This gem provides a structured way to handle content, data, and metadata for
 various applications.
 
+
+== Testing out how it works
+
+Download the mn-samples-iso built site: https://github.com/metanorma/mn-samples-iso/actions/runs/8862815829/artifacts/1453746303[mn-samples-iso-Linux].
+
+Then run these commands:
+
+[source,bash]
+----
+$ unzip mn-samples-iso-Linux.zip
+$ cd mn-samples-iso-Linux
+$ mkdir content
+$ mv index.html documents.xml documents content
+$ echo '{"name": "mn-samples-iso","version":"0.1.0"}' > metadata.json
+$ cd ..
+$ bundle exec capsium package pack -f mn-samples-iso-Linux
+Package created: mn-samples-iso-0.1.0.cap
+$ bundle exec capsium reactor serve mn-samples-iso-0.1.0.cap
+Starting server on http://localhost:8864
+[2024-06-05 14:56:41] INFO  WEBrick::HTTPServer#start: pid=8234 port=8864
+...
+----
+
 == Installation
 
 To install the Capsium gem, add it to your Gemfile:
@@ -46,11 +69,9 @@ A Capsium package is a structured collection of content, data, metadata, and rou
 
 A Capsium reactor is a runtime environment that serves Capsium packages. It reads the package configuration and starts a server that can handle HTTP requests according to the routes defined in the package. The reactor ensures that the content and data within the package are served correctly, allowing for easy integration and deployment of packaged applications.
 
-== Packing a package
+== CLI: Package
 
 To pack a package, you need to define the content, data, metadata, routes, and storage configurations. Once defined, you can use the Capsium command-line interface (CLI) to create and manage your packages.
-
-=== Using the command line
 
 Capsium provides a CLI to help you pack and manage your packages. Here are some common commands:
 
@@ -78,16 +99,7 @@ capsium package add route /=example.html /index=index.html /api/v1/data/animals=
 capsium package add storage datasets=[{name:animals,source:data/animals.yaml,format:yaml,schema:data/animals_schema.yaml}]
 ----
 
-== Starting a reactor on your package
-
-To start a Capsium reactor on your package, use the following command:
-
-[source,bash]
-----
-capsium reactor serve my_package.cap
-----
-
-== Packing a package
+=== Packing a package
 
 To pack an existing Capsium package directory, use the following command:
 
@@ -109,6 +121,19 @@ filename:
 capsium package pack -f spec/fixtures/bare_package
 ----
 ====
+
+
+
+== CLI: Reactor
+
+=== Starting a reactor on your package
+
+To start a Capsium reactor on your package, use the following command:
+
+[source,bash]
+----
+capsium reactor serve my_package.cap
+----
 
 
 == Programmatically managing packages
