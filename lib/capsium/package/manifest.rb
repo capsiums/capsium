@@ -16,7 +16,7 @@ module Capsium
 
       def initialize(path)
         @path = path
-        @content_path = File.join(File.dirname(@path), "content")
+        @content_path = File.join(File.dirname(@path), Package::CONTENT_DIR)
 
         @config = if File.exist?(path)
             ManifestConfig.from_json(File.read(path))

@@ -48,8 +48,9 @@ module Capsium
 
       def add(route, target)
         target = RouteTarget.new(file: target) if target.is_a?(String)
-        @routes ||= []
-        @routes << Route.new(path: route, target: target)
+        r = Route.new(path: route, target: target)
+        @routes << r
+        r
       end
 
       def update(route, updated_route, updated_target)

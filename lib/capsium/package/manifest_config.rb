@@ -9,6 +9,11 @@ module Capsium
 
     class ManifestConfig < Shale::Mapper
       attribute :content, ManifestConfigItem, collection: true
+
+      def sort!
+        @content.sort_by!(&:file)
+        self
+      end
     end
   end
 end

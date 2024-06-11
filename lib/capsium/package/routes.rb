@@ -27,7 +27,7 @@ module Capsium
         @config = if File.exist?(path)
             RoutesConfig.from_json(File.read(path))
           else
-            generate_routes_from_manifest
+            generate_routes
           end
         validate_index_path(@config.resolve(INDEX_ROUTE)&.target&.file)
         validate
@@ -65,23 +65,20 @@ module Capsium
 
       private
 
-      def generate_routes_from_manifest
-        routes = RoutesConfig.new
-        @manifest.config.content.each do |data_item|
-          file_path = data_item.file
+      def generate_routes
+        r = RoutesConfig.new
+        manifest.config.sort!.content.each_with_object({}) do |data_item, hash|
+          relative_path = data_item.file.sub(/^#{Package::CONTENT_DIR}/, "")
+          r.add(relative_path, data_item.file)
 
-          if file_path == DEFAULT_INDEX_TARGET
-            routes.add(INDEX_ROUTE, DEFAULT_INDEX_TARGET)
+          # Ensure the index route is included
+          if File.basename(relative_path, ".*") == "index"
+            r.add("/index", data_item.file)
+            r.add("/", data_item.file)
           end
-
-          routes.add("/#{clean_target_html_path(file_path)}", file_path) if file_path =~ /\.html$/
-          routes.add("/#{file_path}", file_path)
         end
-        routes
-      end
 
-      def clean_target_html_path(path)
-        File.dirname(path) != "." ? File.dirname(path) + File.basename(path, ".html") : File.basename(path, ".html")
+        r
       end
 
       def validate_index_path(index_path)
@@ -90,6 +87,10 @@ module Capsium
         target_path = @manifest.path_to_content_file(index_path)
         raise "Index file does not exist: #{target_path}" unless File.exist?(target_path)
         raise "Index file is not an HTML file: #{target_path}" unless File.extname(target_path).downcase == ".html"
+      end
+
+      def validate_route_target(route, target)
+        # Add any necessary validation logic for the route and target
       end
     end
   end
