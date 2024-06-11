@@ -1,31 +1,54 @@
 # frozen_string_literal: true
 
-# spec/capsium/package/storage_spec.rb
 require "spec_helper"
 require "capsium/package/storage"
+require_relative "package_spec_helper"
 
-RSpec.xdescribe Capsium::Package::Storage do
-  let(:storage_path) { "/tmp/test_package/storage.json" }
-  let(:storage_data) { { datasets: [] } }
-  let(:storage) { described_class.new("/tmp/test_package") }
+RSpec.describe Capsium::Package::Storage do
+  let(:storage_path) { File.join(Dir.mktmpdir, "storage.json") }
+  let(:data_dir) { File.join(File.dirname(storage_path), "data") }
+  let(:animals_yaml_path) { File.join(data_dir, "animals.yaml") }
+  let(:animals_schema_path) { File.join(data_dir, "animals_schema.yaml") }
+  let(:fixtures_animals_yaml_path) { File.expand_path(File.join(__dir__, "..", "..", "fixtures", "data_package", "data", "animals.yaml")) }
+  let(:fixtures_animals_schema_path) { File.expand_path(File.join(__dir__, "..", "..", "fixtures", "data_package", "data", "animals_schema.yaml")) }
+
+  let(:storage_data) do
+    {
+      "datasets" => [
+        {
+          "name" => "animals",
+          "source" => "data/animals.yaml",
+          "format" => "yaml",
+          "schema" => "data/animals_schema.yaml",
+        },
+      ],
+    }
+  end
+  let(:storage) { described_class.new(storage_path) }
 
   before do
-    allow(Dir).to receive(:pwd).and_return("/tmp")
-    FileUtils.mkdir_p("/tmp/test_package")
+    FileUtils.mkdir_p(data_dir)
+    FileUtils.cp(fixtures_animals_yaml_path, animals_yaml_path)
+    FileUtils.cp(fixtures_animals_schema_path, animals_schema_path)
     File.write(storage_path, JSON.pretty_generate(storage_data))
   end
 
-  describe "#initialize" do
-    it "loads the storage data from the file" do
-      expect(storage.datasets).to eq([])
+  after do
+    FileUtils.rm_rf(File.dirname(storage_path))
+  end
+
+  describe "#load_datasets" do
+    it "loads datasets correctly from JSON file" do
+      datasets = storage.load_datasets
+      expect(datasets.map(&:config).map(&:to_hash)).to eq(storage_data["datasets"])
     end
   end
 
-  describe "#add_dataset" do
-    it "adds a dataset to the storage" do
-      dataset_info = { source: "example.yaml", format: "yaml" }
-      storage.add_dataset("example", dataset_info)
-      expect(storage.datasets).to include(hash_including(name: "example", source: "example.yaml", format: "yaml"))
+  describe "#save_to_file" do
+    it "saves storage data to a JSON file" do
+      storage.save_to_file
+      saved_data = JSON.parse(File.read(storage_path))
+      expect(saved_data).to eq(storage_data)
     end
   end
 end

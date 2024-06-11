@@ -1,128 +1,136 @@
 # frozen_string_literal: true
 
-# spec/capsium/packager_spec.rb
 require "spec_helper"
-require "capsium/package"
 require "capsium/packager"
-require "capsium/protector"
+require "fileutils"
+require "tmpdir"
 
 RSpec.describe Capsium::Packager do
-  let(:package_path) { "spec/fixtures/sample_package" }
-  let(:package) { Capsium::Package.new(package_path, metadata) }
-  let(:packager) { Capsium::Packager.new(package) }
-
-  let(:metadata) do
-    {
-      name: "sample_package",
-      version: "0.1.0",
-      dependencies: []
-    }
-  end
-
-  before do
-    FileUtils.mkdir_p(package_path)
-    File.write(File.join(package_path, "file1.txt"), "This is a test file.")
-    File.write(File.join(package_path, "file2.txt"), "This is another test file.")
-  end
+  let(:fixtures_path) { File.expand_path(File.join(__dir__, "..", "fixtures")) }
+  let(:tmpdir) { Dir.mktmpdir }
 
   after do
-    FileUtils.rm_rf(package_path)
+    FileUtils.remove_entry(tmpdir) if File.exist?(tmpdir)
   end
 
-  xdescribe "#compress_html" do
-    it "compresses HTML files" do
-      packager.compress_html
-      content = File.read("/tmp/test_package/content/example.html")
-      expect(content).to eq("<html><body>Hello</body></html>")
-    end
-  end
-
-  xdescribe "#minify_css" do
-    it "minifies CSS files" do
-      packager.minify_css
-      content = File.read("/tmp/test_package/content/example.css")
-      expect(content).to eq("body{color:red}")
-    end
-  end
-
-  xdescribe "#minify_js" do
-    it "minifies JS files" do
-      packager.minify_js
-      content = File.read("/tmp/test_package/content/example.js")
-      expect(content).to eq("function test(){return true;}")
-    end
-  end
-
-  xcontext "encrypted package" do
-    let(:metadata) do
-      {
-        name: "sample_package",
-        version: "0.1.0",
-        dependencies: [],
-        compression: {
-          algorithm: "zip",
-          level: "best"
-        },
-        signature: {
-          algorithm: "RSA-SHA256",
-          keyLength: 2048,
-          certificateType: "X.509",
-          signatureFile: "signature.json"
-        },
-        encryption: {
-          algorithm: "AES-256-CBC",
-          keyManagement: "secure"
-        }
-      }
-    end
-
-    let(:package) { Capsium::Package.new(package_path, metadata) }
-    let(:packager) { Capsium::Packager.new(package) }
+  shared_examples "a packager" do |package_name, package_version, expected_files|
+    let(:original_dir) { File.join(fixtures_path, package_name) }
+    let(:existing_cap_file) { File.join(fixtures_path, "#{package_name}-#{package_version}.cap") }
+    let(:temporary_package_dir) { File.join(tmpdir, package_name) }
 
     before do
-      FileUtils.mkdir_p(package_path)
-      File.write(File.join(package_path, "file1.txt"), "This is a test file.")
-      File.write(File.join(package_path, "file2.txt"), "This is another test file.")
+      FileUtils.cp_r(original_dir, temporary_package_dir)
     end
 
-    after do
-      FileUtils.rm_rf(package_path)
+    it "packages the directory into a .cap file" do
+      package = Capsium::Package.new(temporary_package_dir)
+      cap_file = described_class.new.pack(package, force: true)
+      expect(cap_file).not_to be_nil
+      expect(File).to exist(cap_file)
     end
 
-    describe "#package_files" do
-      it "creates metadata, compresses, encrypts, and signs the package" do
-        expect do
-          packager.package_files
-        end.to change { File.exist?(File.join(package_path, "metadata.json")) }.from(false).to(true)
-                                                                               .and change {
-                                                                                      File.exist?(File.join(
-                                                                                                    package_path, "manifest.json"
-                                                                                                  ))
-                                                                                    }.from(false).to(true)
-                                                                                                 .and change {
-                                                                                                        File.exist?(File.join(
-                                                                                                                      package_path, "package.enc"
-                                                                                                                    ))
-                                                                                                      }.from(false).to(true)
-                                                                                                                   .and change {
-                                                                                                                          File.exist?(File.join(
-                                                                                                                                        package_path, "signature.json"
-                                                                                                                                      ))
-                                                                                                                        }.from(false).to(true)
-                                                                                                                                     .and change {
-                                                                                                                                            File.exist?(File.join(
-                                                                                                                                                          package_path, "public_key.pem"
-                                                                                                                                                        ))
-                                                                                                                                          }.from(false).to(true)
+    it "extracts the .cap file into a directory" do
+      package = Capsium::Package.new(temporary_package_dir)
+      cap_file = described_class.new.pack(package, force: true)
+      expect(cap_file).not_to be_nil
+      extract_dir = File.join(tmpdir, "extracted_package")
+      described_class.new.unpack(cap_file, extract_dir)
+
+      expected_files.each do |file|
+        expect(File).to exist(File.join(extract_dir, file))
       end
     end
 
-    describe "#verify_signature" do
-      it "verifies the digital signature of the package" do
-        packager.package_files
-        protector = Capsium::Protector.new(package, metadata[:encryption], metadata[:digitalSignature])
-        expect(protector.verify_signature).to be true
+    it "ensures the extracted files match the original files" do
+      package = Capsium::Package.new(temporary_package_dir)
+      cap_file = described_class.new.pack(package, force: true)
+      expect(cap_file).not_to be_nil
+      extract_dir = File.join(tmpdir, "extracted_package")
+      described_class.new.unpack(cap_file, extract_dir)
+
+      expected_files.each do |file|
+        original_content = File.read(File.join(temporary_package_dir, file))
+        extracted_content = File.read(File.join(extract_dir, file))
+
+        if file.end_with?(".json")
+          original_content = JSON.pretty_generate(JSON.parse(original_content))
+          extracted_content = JSON.pretty_generate(JSON.parse(extracted_content))
+        end
+
+        expect(extracted_content).to eq(original_content)
       end
     end
+
+    it "extracts an existing .cap file into a directory" do
+      extract_dir = File.join(tmpdir, "extracted_existing_package")
+      described_class.new.unpack(existing_cap_file, extract_dir)
+
+      expected_files.each do |file|
+        expect(File).to exist(File.join(extract_dir, file))
+      end
+    end
+
+    it "ensures the extracted files from an existing .cap match the original files" do
+      extract_dir = File.join(tmpdir, "extracted_existing_package")
+      described_class.new.unpack(existing_cap_file, extract_dir)
+
+      expected_files.each do |file|
+        original_content = File.read(File.join(temporary_package_dir, file))
+        extracted_content = File.read(File.join(extract_dir, file))
+
+        if file.end_with?(".json")
+          original_content = JSON.pretty_generate(JSON.parse(original_content))
+          extracted_content = JSON.pretty_generate(JSON.parse(extracted_content))
+        end
+
+        expect(extracted_content).to eq(original_content)
+      end
+    end
+  end
+
+  context "with a bare package" do
+    let(:package_name) { "bare_package" }
+    let(:package_version) { "0.1.0" }
+    let(:expected_files) do
+      [
+        "content/index.html",
+        "content/example.css",
+        "content/example.js",
+        "metadata.json",
+      ]
+    end
+
+    it_behaves_like "a packager", "bare_package", "0.1.0", [
+      "content/index.html",
+      "content/example.css",
+      "content/example.js",
+      "metadata.json",
+    ]
+  end
+
+  context "with a data package" do
+    let(:package_name) { "data_package" }
+    let(:package_version) { "0.1.0" }
+    let(:expected_files) do
+      [
+        "content/index.html",
+        "content/example.css",
+        "content/example.js",
+        "metadata.json",
+        "data/animals.yaml",
+        "data/animals_schema.yaml",
+        "storage.json",
+      ]
+    end
+
+    it_behaves_like "a packager", "data_package", "0.1.0", [
+      "content/index.html",
+      "content/example.css",
+      "content/example.js",
+      "metadata.json",
+      "data/animals.yaml",
+      "data/animals_schema.yaml",
+      "storage.json",
+    ]
   end
 end

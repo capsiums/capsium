@@ -1,78 +1,64 @@
 # frozen_string_literal: true
 
-# lib/capsium/package/dataset.rb
 require "json"
 require "yaml"
 require "csv"
 require "sqlite3"
+require "shale"
+require "json-schema"
+require_relative "dataset_config"
 
 module Capsium
   class Package
-    class Dataset < Shale::Mapper
-      # {
-      #   "datasets": [
-      #     {
-      #       "name": "animals",
-      #       "source": "data/animals.yaml",
-      #       "format": "yaml",
-      #       "schema": "data/animals_schema.yaml"
-      #     }
-      #   ]
-      # }
-      attr_reader :name, :path, :type, :data
+    class Dataset
+      attr_reader :config, :data, :data_path
+      extend Forwardable
 
-      def initialize(path, data_path)
-        @path = path
-        @name = File.basename(@path, ".*")
-        @type = detect_type
-        @data_path = data_path
+      def_delegators :@config, :to_json
+
+      def initialize(config:, data_path: nil)
+        @config = config
+        @data_path = data_path || config.source
         @data = load_data
       end
 
-      def detect_type
-        case File.extname(@path).downcase
-        when /.ya?ml/ then :yaml
-        when ".json" then :json
-        when ".csv" then :csv
-        when ".tsv" then :tsv
-        when ".sqlite", ".db" then :sqlite
-        else
-          raise "Unsupported data file type: #{File.extname(@path)}"
-        end
-      end
-
       def load_data
-        case @type
-        when :yaml then YAML.load_file(@path)
-        when :json then JSON.parse(File.read(@path))
-        when :csv then CSV.read(@path, headers: true)
-        when :tsv then CSV.read(@path, col_sep: "\t", headers: true)
-        when :sqlite then load_sqlite_data
+        case @config.format
+        when "yaml" then YAML.load_file(@data_path)
+        when "json" then JSON.parse(File.read(@data_path))
+        when "csv" then CSV.read(@data_path, headers: true)
+        when "tsv" then CSV.read(@data_path, col_sep: "\t", headers: true)
+        when "sqlite" then load_sqlite_data
         else
-          raise "Unsupported data file type: #{@type}"
+          raise "Unsupported data file type: #{@config.format}"
         end
       end
 
-      def as_json
-        {
-          name: name,
-          source: relative_path(path),
-          format: type.to_s
-        }
+      def validate
+        return unless @config.schema
+
+        schema_path = File.join(File.dirname(@data_path), @config.schema)
+        schema = YAML.load_file(schema_path) if @config.format == "yaml"
+        schema = JSON.parse(File.read(schema_path)) if @config.format == "json"
+
+        case @config.format
+        when "yaml" then YAML.load_file(@data_path)
+        when "json" then JSON.parse(File.read(@data_path))
+        else
+          raise "Validation is only supported for YAML and JSON formats"
+        end
+
+        JSON::Validator.validate!(schema, @data.to_json)
       end
 
-      def to_json(*_args)
-        JSON.pretty_generate(as_json)
-      end
-
-      def relative_path(path)
-        Pathname.new(path).relative_path_from(@data_path).to_s
+      def save_to_file(output_path)
+        File.write(output_path, to_json)
       end
 
       private
 
       def load_sqlite_data
-        db = SQLite3::Database.new(@path)
+        db = SQLite3::Database.new(@data_path)
         tables = db.execute("SELECT name FROM sqlite_master WHERE type='table';")
         data = {}
         tables.each do |table|
