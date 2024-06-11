@@ -15,9 +15,7 @@ module Capsium
       @package = package.is_a?(String) ? Package.new(package) : package
       @package_path = @package.path
       @port = port
-      server_options = { Port: @port }
-      server_options[:DoNotListen] = true if do_not_listen
-      @server = WEBrick::HTTPServer.new(server_options)
+      setup_server(do_not_listen)
       @routes = @package.routes
       mount_routes
     end
@@ -50,6 +48,12 @@ module Capsium
 
     private
 
+    def setup_server(do_not_listen)
+      server_options = { Port: @port }
+      server_options[:DoNotListen] = true if do_not_listen
+      @server = WEBrick::HTTPServer.new(server_options)
+    end
+
     def mount_routes
       @routes.config.routes.each do |route|
         path = route.path
@@ -60,26 +64,26 @@ module Capsium
     end
 
     def start_server
-      @server_thread = Thread.new do
-        trap("INT") do
-          puts "\nShutting down server..."
-          @server.shutdown
-          exit
-        end
-
+      Thread.new do
+        trap("INT") { shutdown_server }
         puts "Starting server on http://localhost:#{@port}"
         @server.start
       end
+    end
+
+    def shutdown_server
+      puts "\nShutting down server..."
+      @server.shutdown
+      exit
     end
 
     def restart_server
       @server.shutdown
       @server_thread.join if @server_thread
       load_package
-      server_options = { Port: @port }
-      @server = WEBrick::HTTPServer.new(server_options)
+      setup_server(false)
       mount_routes
-      start_server
+      @server_thread = start_server
     end
 
     def start_listener
@@ -90,8 +94,6 @@ module Capsium
 
       listener.start
       puts "Listening for changes in #{@package_path}..."
-
-      # Wait for the server thread to finish
       @server_thread.join
     end
 
