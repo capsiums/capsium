@@ -15,6 +15,7 @@ module Capsium
       extend ThorExt::Start
 
       desc "info PACKAGE_PATH", "Display information about the package"
+
       def info(path_to_package)
         package = Capsium::Package.new(path_to_package)
         puts "Package Path: #{package.path}"
@@ -23,24 +24,28 @@ module Capsium
       end
 
       desc "manifest PATH_TO_PACKAGE", "Show the manifest content of the package"
+
       def manifest(path_to_package)
         package = Capsium::Package.new(path_to_package)
         puts JSON.pretty_generate(package.manifest.as_json)
       end
 
       desc "storage PATH_TO_PACKAGE", "Show the storage datasets of the package"
+
       def storage(path_to_package)
         package = Capsium::Package.new(path_to_package)
         puts JSON.pretty_generate(package.storage.as_json)
       end
 
       desc "routes PATH_TO_PACKAGE", "Show the routes of the package"
+
       def routes(path_to_package)
         package = Capsium::Package.new(path_to_package)
         puts JSON.pretty_generate(package.routes.as_json)
       end
 
       desc "metadata PATH_TO_PACKAGE", "Show the metadata of the package"
+
       def metadata(path_to_package)
         package = Capsium::Package.new(path_to_package)
         puts JSON.pretty_generate(package.metadata.as_json)
@@ -48,6 +53,7 @@ module Capsium
 
       desc "pack PATH_TO_PACKAGE_FOLDER", "Package the files into the package"
       option :force, type: :boolean, default: false, aliases: "-f"
+
       def pack(path_to_package)
         package = Capsium::Package.new(path_to_package)
         packager = Capsium::Packager.new
@@ -61,25 +67,34 @@ module Capsium
 
     class Reactor < Thor
       extend ThorExt::Start
+
       desc "serve PACKAGE_PATH", "Start the Capsium reactor to serve the package"
+      option :port, type: :numeric, default: Capsium::Reactor::DEFAULT_PORT
+      option :do_not_listen, type: :boolean, default: false
+
       def serve(path_to_package)
-        package = Capsium::Package.new(path_to_package)
-        reactor = Capsium::Reactor.new(package)
+        reactor = Capsium::Reactor.new(
+          package: path_to_package,
+          port: options[:port],
+          do_not_listen: options[:do_not_listen],
+        )
         reactor.serve
       rescue StandardError => e
         puts e
         puts e.inspect
         puts e.backtrace
       ensure
-        package.cleanup
+        reactor.package.cleanup
       end
     end
 
     class Convert < Thor
       extend ThorExt::Start
-      desc "jekyll SITE_DIRECTORY OUTPUT_DIRECTORY", "Convert a Jekyll site directory to a Capsium package"
-      def jekyll(site_directory, output_directory)
-        converter = Capsium::Converters::Jekyll.new(site_directory, output_directory)
+
+      desc "jekyll PACKAGE_FILE OUTPUT_DIRECTORY", "Convert a Capsium package to a Jekyll site"
+
+      def jekyll(package_file, output_directory)
+        converter = Capsium::Converters::Jekyll.new(package_file, output_directory)
         converter.convert
       end
     end
@@ -90,7 +105,7 @@ module Capsium
     desc "reactor SUBCOMMAND ...ARGS", "Manage the reactor"
     subcommand "reactor", Capsium::Cli::Reactor
 
-    desc "converter SUBCOMMAND ...ARGS", "Convert from another format"
-    subcommand "converter", Capsium::Cli::Convert
+    desc "convert SUBCOMMAND ...ARGS", "Convert from another format"
+    subcommand "convert", Capsium::Cli::Convert
   end
 end

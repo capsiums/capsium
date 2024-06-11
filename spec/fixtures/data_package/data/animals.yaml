@@ -1,10 +1,79 @@
+categories:
+  - id: 1
+    name: "Mammals"
+  - id: 2
+    name: "Birds"
+  - id: 3
+    name: "Fish"
+
 animals:
   - name: "Lion"
     type: "Mammal"
     habitat: "Savannah"
+    diet: "Carnivore"
+    lifespan: "10-14 years"
+    conservation_status: "Vulnerable"
+    category_id: 1
   - name: "Eagle"
     type: "Bird"
     habitat: "Mountains"
+    diet: "Carnivore"
+    lifespan: "20-30 years"
+    conservation_status: "Least Concern"
+    category_id: 2
   - name: "Shark"
     type: "Fish"
     habitat: "Ocean"
+    diet: "Carnivore"
+    lifespan: "20-30 years"
+    conservation_status: "Varies"
+    category_id: 3
+  - name: "Elephant"
+    type: "Mammal"
+    habitat: "Forest"
+    diet: "Herbivore"
+    lifespan: "60-70 years"
+    conservation_status: "Endangered"
+    category_id: 1
+  - name: "Penguin"
+    type: "Bird"
+    habitat: "Antarctica"
+    diet: "Carnivore"
+    lifespan: "15-20 years"
+    conservation_status: "Near Threatened"
+    category_id: 2
+  - name: "Dolphin"
+    type: "Mammal"
+    habitat: "Ocean"
+    diet: "Carnivore"
+    lifespan: "40-60 years"
+    conservation_status: "Least Concern"
+    category_id: 1
+  - name: "Tiger"
+    type: "Mammal"
+    habitat: "Jungle"
+    diet: "Carnivore"
+    lifespan: "10-15 years"
+    conservation_status: "Endangered"
+    category_id: 1
+  - name: "Parrot"
+    type: "Bird"
+    habitat: "Rainforest"
+    diet: "Herbivore"
+    lifespan: "50-60 years"
+    conservation_status: "Least Concern"
+    category_id: 2
+  - name: "Whale"
+    type: "Mammal"
+    habitat: "Ocean"
+    diet: "Carnivore"
+    lifespan: "70-90 years"
+    conservation_status: "Varies"
+    category_id: 1
+  - name: "Cheetah"
+    type: "Mammal"
+    habitat: "Savannah"
+    diet: "Carnivore"
+    lifespan: "10-12 years"
+    conservation_status: "Vulnerable"
+    category_id: 1

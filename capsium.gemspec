@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.name = "capsium"
   spec.version = Capsium::VERSION
   spec.authors = ["Ribose Inc."]
-  spec.email = ["open.source@ribose.com'"]
+  spec.email = ["open.source@ribose.com"]
 
   spec.summary = "Capsium"
   spec.description = "Capsium"
@@ -17,9 +17,6 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = "https://github.com/metanorma/capsium/releases"
 
-  # Specify which files should be added to the gem when it is released.
-  # The `git ls-files -z` loads the files in the RubyGem
-  # that have been added into git.
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     `git ls-files -z`
       .split("\x0")
@@ -38,7 +35,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "json"
   spec.add_dependency "listen"
   spec.add_dependency "marcel"
-  spec.add_dependency "rubyzip", "~>2.3.2"
+  spec.add_dependency "rubyzip", "~> 2.3.2"
   spec.add_dependency "scss_lint"
   spec.add_dependency "shale"
   spec.add_dependency "sqlite3"
@@ -46,8 +43,11 @@ Gem::Specification.new do |spec|
   spec.add_dependency "uglifier"
   spec.add_dependency "webrick"
   spec.add_dependency "yaml"
+  spec.add_dependency "jekyll"
+  spec.add_dependency "json-schema"
 
-  spec.add_development_dependency "pry", "~> 0.12.2"
+  spec.add_development_dependency "rack-test"
+  spec.add_development_dependency "pry"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.11"
   spec.add_development_dependency "rubocop", "~> 1.58"

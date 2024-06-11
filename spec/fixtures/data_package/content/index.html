@@ -1,1 +1,22 @@
-<html><body>Hello</body></html>
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Animal Data Package</title>
+    <link rel="stylesheet" type="text/css" href="/example.css">
+  </head>
+  <body>
+    <h1>Welcome to the Animal Data Package</h1>
+    <p>This site displays detailed information about various animals, allowing you to explore different types and their habitats interactively.</p>
+    <button id="loadAnimals">Load Animals</button>
+    <input type="text" id="search" placeholder="Search animals by name">
+    <select id="categoryFilter">
+      <option value="">Select category</option>
+      <option value="1">Mammals</option>
+      <option value="2">Birds</option>
+      <option value="3">Fish</option>
+    </select>
+    <ul id="animalList"></ul>
+    <div id="animalDetails"></div>
+    <script src="/example.js"></script>
+  </body>
+</html>

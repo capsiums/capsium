@@ -11,28 +11,33 @@ module Capsium
     class FileAlreadyExistsError < StandardError; end
 
     def pack(package, options = {})
-      package_name = package.metadata.name
-      package_version = package.metadata.version
-      cap_file_path = File.expand_path(
-        File.join(package.path, "..", "#{package_name}-#{package_version}.cap")
-      )
+      directory = package.path
+      cap_file_path = File.join(Dir.mktmpdir, "#{package.metadata.name}-#{package.metadata.version}.cap")
 
-      if File.exist?(cap_file_path)
-        unless options[:force]
-          raise FileAlreadyExistsError,
-                "Package target already exists, aborting: `#{relative_path_current(cap_file_path)}`"
-        end
-
-        puts "Package target already exists, overwriting: `#{relative_path_current(cap_file_path)}`"
+      if File.exist?(cap_file_path) && !options[:force]
+        raise FileAlreadyExistsError, "Package target already exists, aborting: `#{cap_file_path}`"
+      elsif File.exist?(cap_file_path)
+        puts "Package target already exists, overwriting: `#{cap_file_path}`"
         FileUtils.rm_f(cap_file_path)
       end
 
       Dir.mktmpdir do |dir|
-        FileUtils.cp_r("#{package.path}/.", dir)
+        FileUtils.cp_r("#{directory}/.", dir)
         new_package = Package.new(dir)
         new_package.solidify
         compress_package(new_package, cap_file_path)
-        puts "Package created: #{relative_path_current(cap_file_path)}"
+        puts "Package created: #{cap_file_path}"
+        return cap_file_path
+      end
+    end
+
+    def unpack(cap_file_path, destination)
+      Zip::File.open(cap_file_path) do |zip_file|
+        zip_file.each do |entry|
+          entry_path = File.join(destination, entry.name)
+          FileUtils.mkdir_p(File.dirname(entry_path))
+          entry.extract(entry_path)
+        end
       end
     end
 
@@ -42,55 +47,6 @@ module Capsium
           zipfile.add(file.sub("#{package.path}/", ""), file)
         end
       end
-    end
-
-    # def package_files
-    #   create_metadata_file
-    #   create_manifest_file
-    #   create_packaging_file
-
-    #   compressor = Compressor.new(@package, @package.metadata[:compression])
-    #   compressor.compress
-
-    #   protector = Protector.new(@package, @package.metadata[:encryption], @package.metadata[:signature])
-    #   protector.apply_encryption_and_sign
-    # end
-
-    # private
-
-    # def create_metadata_file
-    #   metadata_path = File.join(@package.path, Package::METADATA_FILE)
-    #   metadata_content = @package.metadata.to_h
-    #   write_json_file(metadata_path, metadata_content)
-    # end
-
-    # def create_manifest_file
-    #   manifest_path = File.join(@package.path, Package::MANIFEST_FILE)
-    #   manifest_content = {
-    #     files: Dir[File.join(@package.path, '**', '*')].reject { |f| File.directory?(f) }
-    #   }
-    #   write_json_file(manifest_path, manifest_content)
-    # end
-
-    def create_packaging_file
-      packaging_path = File.join(@package.path, Package::PACKAGING_FILE)
-      packaging_content = {
-        name: @package.name,
-        content_path: relative_path_package(@package.content_path),
-        data_path: relative_path_package(@package.data_path),
-        datasets: @package.datasets.map(&:to_h)
-      }
-      write_json_file(packaging_path, packaging_content)
-    end
-
-    def write_json_file(path, content)
-      File.open(path, "w") do |file|
-        file.write(JSON.pretty_generate(content))
-      end
-    end
-
-    def relative_path_package(absolute_path)
-      Pathname.new(absolute_path).relative_path_from(Pathname.new(@package.path)).to_s
     end
 
     def relative_path_current(absolute_path)

@@ -3,31 +3,31 @@
     {
       "path": "/",
       "target": {
-        "file": "index.html"
+        "file": "content/index.html"
       }
     },
     {
       "path": "/index",
       "target": {
-        "file": "index.html"
+        "file": "content/index.html"
       }
     },
     {
       "path": "/index.html",
       "target": {
-        "file": "index.html"
+        "file": "content/index.html"
       }
     },
     {
       "path": "/example.css",
       "target": {
-        "file": "example.css"
+        "file": "content/example.css"
       }
     },
     {
       "path": "/example.js",
       "target": {
-        "file": "example.js"
+        "file": "content/example.js"
       }
     }
   ]

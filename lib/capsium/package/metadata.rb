@@ -3,39 +3,27 @@
 # lib/capsium/package/metadata.rb
 require "shale"
 require "forwardable"
+require_relative "metadata_config"
 
 module Capsium
   class Package
-    class Dependency < Shale::Mapper
-      attribute :name, Shale::Type::String
-      attribute :version, Shale::Type::String
-    end
-
-    class MetadataData < Shale::Mapper
-      attribute :name, Shale::Type::String
-      attribute :version, Shale::Type::String
-      attribute :dependencies, Dependency, collection: true
-    end
-
     class Metadata
-      attr_reader :path, :data
+      attr_reader :path, :config
 
       extend Forwardable
-      def_delegator :@data, :name
-      def_delegator :@data, :version
-      def_delegator :@data, :dependencies
+      def_delegator :@config, :to_json
+      def_delegator :@config, :name
+      def_delegator :@config, :version
+      def_delegator :@config, :description # Delegate description method
+      def_delegator :@config, :dependencies
 
       def initialize(path)
         @path = path
-        @data = if File.exist?(path)
-                  MetadataData.from_json(File.read(path))
-                else
-                  MetadataData.new
-                end
-      end
-
-      def to_json(*_args)
-        @data.to_json
+        @config = if File.exist?(path)
+            MetadataData.from_json(File.read(path))
+          else
+            MetadataData.new
+          end
       end
 
       def save_to_file(output_path = @path)

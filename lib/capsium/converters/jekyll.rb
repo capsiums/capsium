@@ -1,58 +1,88 @@
 # frozen_string_literal: true
 
-# lib/capsium/converters/jekyll_to_capsium.rb
+# lib/capsium/converters/jekyll.rb
 require "fileutils"
 require "json"
-require "capsium/packager"
+require "capsium/package"
 
 module Capsium
   module Converters
     class Jekyll
-      def initialize(site_directory, output_directory)
-        @site_directory = site_directory
+      def initialize(package_file, output_directory)
+        @package_file = package_file
         @output_directory = output_directory
       end
 
       def convert
-        validate_site_directory
-        package_directory = prepare_package_directory
-        packager = Capsium::Packager.new(package_directory)
-        packager.pack
-        cleanup_package_directory(package_directory)
+        package = Capsium::Package.new(@package_file)
+
+        prepare_output_directory
+
+        write_config_yml(package)
+        copy_content_files(package)
+        generate_index_html(package)
+
+        puts "Capsium package converted to Jekyll site at #{@output_directory}"
       end
 
       private
 
-      def validate_site_directory
-        return if Dir.exist?(@site_directory) && File.exist?(File.join(@site_directory, "index.html"))
-
-        raise "Invalid Jekyll site directory: #{@site_directory}"
+      def prepare_output_directory
+        FileUtils.mkdir_p(@output_directory)
       end
 
-      def prepare_package_directory
-        package_directory = File.join(@output_directory, "capsium_package")
-        FileUtils.mkdir_p(package_directory)
-
-        FileUtils.cp_r(Dir.glob("#{@site_directory}/*"), package_directory)
-
-        create_manifest(package_directory)
-
-        package_directory
-      end
-
-      def create_manifest(package_directory)
-        manifest = {
-          "name" => "jekyll_site",
-          "version" => "1.0.0",
-          "description" => "A Jekyll site converted to a Capsium package",
-          "files" => Dir.glob("#{package_directory}/**/*").map { |file| file.sub("#{package_directory}/", "") }
+      def write_config_yml(package)
+        config = {
+          "title" => package.metadata.name || "Capsium Jekyll Site",
+          "description" => package.metadata.description || "Generated from Capsium package",
+          "baseurl" => "",
+          "url" => "",
+          "markdown" => "kramdown",
+          "theme" => "minima",
         }
-
-        File.write(File.join(package_directory, "manifest.json"), JSON.pretty_generate(manifest))
+        write_file("_config.yml", config.to_yaml)
       end
 
-      def cleanup_package_directory(package_directory)
-        FileUtils.rm_rf(package_directory)
+      def write_file(relative_path, content)
+        output_path = File.join(@output_directory, relative_path)
+        FileUtils.mkdir_p(File.dirname(output_path))
+        File.open(output_path, "w") { |file| file.write(content) }
+      end
+
+      def copy_content_files(package)
+        package.content_files.each do |file_path|
+          relative_path = Pathname.new(file_path).relative_path_from(Pathname.new(package.instance_variable_get(:@path)))
+          output_path = File.join(@output_directory, relative_path)
+          FileUtils.mkdir_p(File.dirname(output_path))
+          FileUtils.cp(file_path, output_path)
+        end
+      end
+
+      def generate_index_html(package)
+        root_route = package.routes.config.routes.find { |route| route.path == "/" }
+        if root_route
+          index_path = File.join(package.instance_variable_get(:@path), root_route.target.file)
+          index_content = File.read(index_path)
+          write_file("index.html", index_content)
+        else
+          write_file("index.html", default_index_html(package))
+        end
+      end
+
+      def default_index_html(package)
+        <<~HTML
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>#{package.metadata.name || "Capsium Jekyll Site"}</title>
+          </head>
+          <body>
+            <h1>Welcome to #{package.metadata.name || "Capsium Jekyll Site"}</h1>
+            <p>This site was generated from a Capsium package.</p>
+          </body>
+          </html>
+        HTML
       end
     end
   end

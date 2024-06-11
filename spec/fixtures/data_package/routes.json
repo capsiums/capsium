@@ -1,41 +1,10 @@
 {
   "routes": [
-    {
-      "path": "/",
-      "target": {
-        "file": "index.html"
-      }
-    },
-    {
-      "path": "/index",
-      "target": {
-        "file": "index.html"
-      }
-    },
-    {
-      "path": "/index.html",
-      "target": {
-        "file": "index.html"
-      }
-    },
-    {
-      "path": "/example.css",
-      "target": {
-        "file": "example.css"
-      }
-    },
-    {
-      "path": "/example.js",
-      "target": {
-        "file": "example.js"
-      }
-    },
-    {
-      "path": "/api/v1/data/animals",
-      "target": {
-        "type": "dataset",
-        "name": "animals"
-      }
-    }
+    { "path": "/", "target": { "file": "content/index.html" } },
+    { "path": "/index", "target": { "file": "content/index.html" } },
+    { "path": "/index.html", "target": { "file": "content/index.html" } },
+    { "path": "/example.css", "target": { "file": "content/example.css" } },
+    { "path": "/example.js", "target": { "file": "content/example.js" } },
+    { "path": "/api/v1/data/animals", "target": { "dataset": "animals"} }
   ]
 }

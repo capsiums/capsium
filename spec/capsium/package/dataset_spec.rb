@@ -1,63 +1,104 @@
 # frozen_string_literal: true
 
-# spec/capsium/package/dataset_spec.rb
 require "spec_helper"
 require "capsium/package/dataset"
+require "capsium/package/dataset_config"
+require_relative "package_spec_helper"
 
-RSpec.xdescribe Capsium::Package::Dataset do
-  let(:yaml_path) { "/tmp/test_package/data/example.yaml" }
-  let(:json_path) { "/tmp/test_package/data/example.json" }
-  let(:csv_path) { "/tmp/test_package/data/example.csv" }
-  let(:sqlite_path) { "/tmp/test_package/data/example.db" }
+RSpec.describe Capsium::Package::Dataset do
+  let(:data_path) { File.join(Dir.mktmpdir, "animals.yaml") }
+  let(:schema_path) { File.join(File.dirname(data_path), "animals_schema.yaml") }
+  let(:config_path) { File.join(Dir.mktmpdir, "dataset_config.json") }
+  let(:dataset_data) { "---\nanimals:\n  - name: Lion\n    type: Mammal\n    habitat: Savannah\n" }
+  let(:schema_data) do
+    <<~YAML
+      type: object
+      properties:
+        animals:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+              habitat:
+                type: string
+            required:
+              - name
+              - type
+              - habitat
+      required:
+        - animals
+    YAML
+  end
+  let(:config_data) do
+    {
+      name: "animals",
+      source: "animals.yaml",
+      format: "yaml",
+      schema: "animals_schema.yaml",
+    }
+  end
+  let(:config) do
+    Capsium::Package::DatasetConfig.new(
+      name: "animals",
+      source: "animals.yaml",
+      format: "yaml",
+      schema: "animals_schema.yaml",
+    )
+  end
+  let(:dataset) { described_class.new(config: config, data_path: data_path) }
 
   before do
-    allow(Dir).to receive(:pwd).and_return("/tmp")
-    FileUtils.mkdir_p("/tmp/test_package/data")
+    File.write(data_path, dataset_data)
+    File.write(schema_path, schema_data)
+    File.write(config_path, config_data.to_json)
+  end
 
-    File.write(yaml_path, "---\n- example: data")
-    File.write(json_path, '[{"example": "data"}]')
-    File.write(csv_path, "example,data\nfoo,bar")
-    SQLite3::Database.new(sqlite_path) do |db|
-      db.execute <<-SQL
-        CREATE TABLE example (
-          id INTEGER PRIMARY KEY,
-          data TEXT
-        );
-      SQL
+  after do
+    FileUtils.rm_f(data_path)
+    FileUtils.rm_f(schema_path)
+    FileUtils.rm_f(config_path)
+  end
+
+  describe "#load_data" do
+    it "loads data correctly from YAML file" do
+      data = dataset.load_data
+      expect(data).to eq(YAML.load_file(data_path))
     end
   end
 
-  describe "#initialize" do
-    it "determines YAML dataset type" do
-      dataset = described_class.new(yaml_path)
-      expect(dataset.type).to eq(:yaml)
+  describe "#validate" do
+    it "validates the dataset against the schema" do
+      expect { dataset.validate }.not_to raise_error
     end
 
-    it "determines JSON dataset type" do
-      dataset = described_class.new(json_path)
-      expect(dataset.type).to eq(:json)
-    end
+    context "when data does not conform to the schema" do
+      let(:dataset_data) { "---\nanimals:\n  - name: Lion\n    habitat: Savannah\n" } # Missing 'type' field
 
-    it "determines CSV dataset type" do
-      dataset = described_class.new(csv_path)
-      expect(dataset.type).to eq(:csv)
-    end
-
-    it "determines SQLite dataset type" do
-      dataset = described_class.new(sqlite_path)
-      expect(dataset.type).to eq(:sqlite)
+      it "raises a validation error" do
+        expect { dataset.validate }.to raise_error(JSON::Schema::ValidationError)
+      end
     end
   end
 
-  describe "#table_name" do
-    it "returns the table name for SQLite datasets" do
-      dataset = described_class.new(sqlite_path)
-      expect(dataset.table_name).to eq("example")
+  describe "#to_json" do
+    it "serializes dataset to JSON" do
+      json_data = dataset.to_json
+      expected_data = config_data.to_json
+      expect(json_data).to eq(expected_data)
     end
+  end
 
-    it "returns nil for non-SQLite datasets" do
-      dataset = described_class.new(yaml_path)
-      expect(dataset.table_name).to be_nil
+  describe "#save_to_file" do
+    it "saves dataset data to a JSON file" do
+      json_path = data_path.chomp(".yaml") + ".json"
+      dataset.save_to_file(json_path)
+      saved_data = JSON.parse(File.read(json_path), symbolize_names: true)
+      expected_data = config_data
+      expect(saved_data).to eq(expected_data)
     end
   end
 end

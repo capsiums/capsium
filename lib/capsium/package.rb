@@ -16,7 +16,7 @@ require_relative "packager"
 
 module Capsium
   class Package
-    attr_reader :name, :path, :manifest, :metadata, :routes, :datasets, :storage
+    attr_reader :name, :path, :manifest, :metadata, :routes, :datasets, :storage, :load_type
 
     MANIFEST_FILE = "manifest.json"
     METADATA_FILE = "metadata.json"
@@ -28,9 +28,10 @@ module Capsium
     DATA_DIR = "data"
     ENCRYPTED_PACKAGING_FILE = "package.enc"
 
-    def initialize(path)
+    def initialize(path, load_type: nil)
       @original_path = Pathname.new(path).expand_path
       @path = prepare_package(@original_path)
+      @load_type = load_type || determine_load_type(path)
       create_package_structure
       load_package
       @name = metadata.name
@@ -43,7 +44,6 @@ module Capsium
         return decompress_cap_file(path) if File.extname(path) == ".cap"
 
         raise "Error: The package must have a .cap extension"
-
       end
 
       raise "Invalid package path: #{path}"
@@ -70,7 +70,6 @@ module Capsium
       metadata = Metadata.new(metadata_path)
       package_name = metadata.name
       package_version = metadata.version
-      package_dependencies = metadata.dependencies
 
       package_path = File.join(temp_dir, "#{package_name}-#{package_version}")
       FileUtils.mkdir_p(package_path)
@@ -92,9 +91,8 @@ module Capsium
 
       # Optional
       @manifest = Manifest.new(manifest_path)
-      @routes = Routes.new(routes_path, @manifest)
       @storage = Storage.new(storage_path)
-      # @datasets = load_datasets
+      @routes = Routes.new(routes_path, @manifest, @storage)
     end
 
     def cleanup
@@ -105,6 +103,16 @@ module Capsium
 
     def package_files
       @packager.package_files
+    end
+
+    def content_files
+      Dir.glob(File.join(content_path, "**", "*")).select { |file| File.file?(file) }
+    end
+
+    def determine_load_type(path)
+      return :directory if File.directory?(path)
+      return :cap_file if File.extname(path) == ".cap"
+      :unsaved
     end
 
     private
