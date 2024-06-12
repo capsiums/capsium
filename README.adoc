@@ -9,8 +9,25 @@ content packages with ease.
 This gem provides a structured way to handle content, data, and metadata for
 various applications.
 
+== Test it out!
 
-== Testing out how it works
+[source,bash]
+----
+$ capsium reactor serve https://github.com/capsiums/cap-story/releases/download/v0.9.0/story_of_claire-0.9.0.cap
+----
+
+Or:
+
+[source,bash]
+----
+$ wget https://github.com/capsiums/cap-story/releases/download/v0.9.0/story_of_claire-0.9.0.cap
+$ capsium reactor serve story_of_claire-0.9.0.cap
+$ open http://localhost:8864
+# => Read the story!#
+----
+
+
+== Building the mn-samples-iso cap package
 
 Download the mn-samples-iso built site: https://github.com/metanorma/mn-samples-iso/actions/runs/8862815829/artifacts/1453746303[mn-samples-iso-Linux].
 
