@@ -10,12 +10,12 @@ Gem::Specification.new do |spec|
 
   spec.summary = "Capsium"
   spec.description = "Capsium"
-  spec.homepage = "https://github.com/metanorma/capsium"
+  spec.homepage = "https://github.com/capsiums/capsium"
   spec.license = "MIT"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["changelog_uri"] = "https://github.com/metanorma/capsium/releases"
+  spec.metadata["changelog_uri"] = "https://github.com/capsiums/capsium/releases"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     `git ls-files -z`
