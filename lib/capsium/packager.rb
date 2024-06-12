@@ -12,12 +12,14 @@ module Capsium
 
     def pack(package, options = {})
       directory = package.path
-      cap_file_path = File.join(Dir.mktmpdir, "#{package.metadata.name}-#{package.metadata.version}.cap")
+      output_file_name = "#{package.metadata.name}-#{package.metadata.version}.cap"
+      output_directory = File.dirname(directory)
+      cap_file_path = File.join(output_directory, output_file_name)
 
       if File.exist?(cap_file_path) && !options[:force]
-        raise FileAlreadyExistsError, "Package target already exists, aborting: `#{cap_file_path}`"
+        raise FileAlreadyExistsError, "Package target already exists, aborting: `#{relative_path_current(cap_file_path)}`"
       elsif File.exist?(cap_file_path)
-        puts "Package target already exists, overwriting: `#{cap_file_path}`"
+        puts "Package target already exists, overwriting: `#{relative_path_current(cap_file_path)}`"
         FileUtils.rm_f(cap_file_path)
       end
 
@@ -25,8 +27,11 @@ module Capsium
         FileUtils.cp_r("#{directory}/.", dir)
         new_package = Package.new(dir)
         new_package.solidify
-        compress_package(new_package, cap_file_path)
-        puts "Package created: #{cap_file_path}"
+        new_cap_file_path = File.join(dir, output_file_name)
+        compress_package(new_package, new_cap_file_path)
+        puts "Package built at: #{new_cap_file_path}"
+        FileUtils.mv(new_cap_file_path, cap_file_path)
+        puts "Package created: #{relative_path_current(cap_file_path)}"
         return cap_file_path
       end
     end
