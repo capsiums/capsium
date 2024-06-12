@@ -25,10 +25,10 @@ module Capsium
         @manifest = manifest
         @storage = storage
         @config = if File.exist?(path)
-            RoutesConfig.from_json(File.read(path))
-          else
-            generate_routes
-          end
+                    RoutesConfig.from_json(File.read(path))
+                  else
+                    generate_routes
+                  end
         validate_index_path(@config.resolve(INDEX_ROUTE)&.target&.file)
         validate
       end
@@ -52,7 +52,9 @@ module Capsium
       end
 
       def validate
-        @config.routes.each { |route| route.target.validate(@manifest, @storage) }
+        @config.routes.each do |route|
+          route.target.validate(@manifest, @storage)
+        end
       end
 
       def to_json(*_args)
@@ -60,15 +62,15 @@ module Capsium
       end
 
       def save_to_file(output_path = @path)
-        File.open(output_path, "w") { |file| file.write(to_json) }
+        File.write(output_path, to_json)
       end
 
       private
 
       def generate_routes
         r = RoutesConfig.new
-        manifest.config.sort!.content.each_with_object({}) do |data_item, hash|
-          relative_path = data_item.file.sub(/^#{Package::CONTENT_DIR}/, "")
+        manifest.config.sort!.content.each_with_object({}) do |data_item, _hash|
+          relative_path = data_item.file.sub(/^#{Package::CONTENT_DIR}/o, "")
           r.add(relative_path, data_item.file)
 
           # Ensure the index route is included

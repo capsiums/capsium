@@ -23,7 +23,8 @@ module Capsium
         puts "Manifest: #{package.manifest.as_json}"
       end
 
-      desc "manifest PATH_TO_PACKAGE", "Show the manifest content of the package"
+      desc "manifest PATH_TO_PACKAGE",
+           "Show the manifest content of the package"
 
       def manifest(path_to_package)
         package = Capsium::Package.new(path_to_package)
@@ -68,7 +69,8 @@ module Capsium
     class Reactor < Thor
       extend ThorExt::Start
 
-      desc "serve PACKAGE_PATH", "Start the Capsium reactor to serve the package"
+      desc "serve PACKAGE_PATH",
+           "Start the Capsium reactor to serve the package"
       option :port, type: :numeric, default: Capsium::Reactor::DEFAULT_PORT
       option :do_not_listen, type: :boolean, default: false
 
@@ -91,10 +93,12 @@ module Capsium
     class Convert < Thor
       extend ThorExt::Start
 
-      desc "jekyll PACKAGE_FILE OUTPUT_DIRECTORY", "Convert a Capsium package to a Jekyll site"
+      desc "jekyll PACKAGE_FILE OUTPUT_DIRECTORY",
+           "Convert a Capsium package to a Jekyll site"
 
       def jekyll(package_file, output_directory)
-        converter = Capsium::Converters::Jekyll.new(package_file, output_directory)
+        converter = Capsium::Converters::Jekyll.new(package_file,
+                                                    output_directory)
         converter.convert
       end
     end

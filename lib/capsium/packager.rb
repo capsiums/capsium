@@ -17,7 +17,8 @@ module Capsium
       cap_file_path = File.join(output_directory, output_file_name)
 
       if File.exist?(cap_file_path) && !options[:force]
-        raise FileAlreadyExistsError, "Package target already exists, aborting: `#{relative_path_current(cap_file_path)}`"
+        raise FileAlreadyExistsError,
+              "Package target already exists, aborting: `#{relative_path_current(cap_file_path)}`"
       elsif File.exist?(cap_file_path)
         puts "Package target already exists, overwriting: `#{relative_path_current(cap_file_path)}`"
         FileUtils.rm_f(cap_file_path)

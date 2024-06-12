@@ -12,9 +12,11 @@ FileUtils.mkdir_p(content_dir)
 FileUtils.mkdir_p(data_dir)
 
 # Create content files
-File.write(File.join(content_dir, "index.html"), "<html><body>Hello</body></html>")
+File.write(File.join(content_dir, "index.html"),
+           "<html><body>Hello</body></html>")
 File.write(File.join(content_dir, "example.css"), "body { color: red; }")
-File.write(File.join(content_dir, "example.js"), "function test() { return true; }")
+File.write(File.join(content_dir, "example.js"),
+           "function test() { return true; }")
 
 # Create data file
 animals_yaml = <<~YAML
@@ -65,38 +67,42 @@ manifest_data = {
     "content/example.js" => "application/javascript",
   },
 }
-File.write(File.join(base_dir, "manifest.json"), JSON.pretty_generate(manifest_data))
+File.write(File.join(base_dir, "manifest.json"),
+           JSON.pretty_generate(manifest_data))
 
 # Create metadata.json
 metadata_data = {
-  "name": "sample_package",
-  "version": "0.1.0",
-  "dependencies": [],
+  name: "sample_package",
+  version: "0.1.0",
+  dependencies: [],
 }
-File.write(File.join(base_dir, "metadata.json"), JSON.pretty_generate(metadata_data))
+File.write(File.join(base_dir, "metadata.json"),
+           JSON.pretty_generate(metadata_data))
 
 # Create routes.json
 routes_data = {
-  "routes": {
+  routes: {
     "/": "content/index.html",
     "/index": "content/index.html",
     "/index.html": "content/index.html",
     "/example.css": "content/example.css",
     "/example.js": "content/example.js",
-    "/api/v1/data/animals": { "type": "dataset", "name": "animals" },
+    "/api/v1/data/animals": { type: "dataset", name: "animals" },
   },
 }
-File.write(File.join(base_dir, "routes.json"), JSON.pretty_generate(routes_data))
+File.write(File.join(base_dir, "routes.json"),
+           JSON.pretty_generate(routes_data))
 
 # Create storage.json
 storage_data = {
-  "datasets": [
+  datasets: [
     {
-      "name": "animals",
-      "source": "data/animals.yaml",
-      "format": "yaml",
-      "schema": "data/animals_schema.yaml",
+      name: "animals",
+      source: "data/animals.yaml",
+      format: "yaml",
+      schema: "data/animals_schema.yaml",
     },
   ],
 }
-File.write(File.join(base_dir, "storage.json"), JSON.pretty_generate(storage_data))
+File.write(File.join(base_dir, "storage.json"),
+           JSON.pretty_generate(storage_data))

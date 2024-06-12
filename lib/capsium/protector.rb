@@ -7,7 +7,8 @@ require "json"
 
 module Capsium
   class Protector
-    def initialize(package, encryption_metadata = nil, digital_signature_metadata = nil)
+    def initialize(package, encryption_metadata = nil,
+digital_signature_metadata = nil)
       @package = package
       @encryption_metadata = encryption_metadata
       @digital_signature_metadata = digital_signature_metadata
@@ -32,7 +33,8 @@ module Capsium
 
     def apply_encryption
       encryption = @encryption_metadata
-      data = File.read(File.join(@package.path, Package::ENCRYPTED_PACKAGING_FILE))
+      data = File.read(File.join(@package.path,
+                                 Package::ENCRYPTED_PACKAGING_FILE))
       cipher = OpenSSL::Cipher.new(encryption[:algorithm])
       cipher.encrypt
       key = cipher.random_key
@@ -54,7 +56,8 @@ module Capsium
       case key_management
       when "secure"
         # Implement secure key storage mechanism
-        File.write(File.join(@package.path, "encryption_key.secure"), Base64.encode64(key))
+        File.write(File.join(@package.path, "encryption_key.secure"),
+                   Base64.encode64(key))
       else
         raise "Unknown key management strategy: #{key_management}"
       end
@@ -69,7 +72,7 @@ module Capsium
       signature_json = {
         algorithm: @digital_signature_metadata[:algorithm],
         certificateType: @digital_signature_metadata[:certificateType],
-        signature: Base64.encode64(signature_data)
+        signature: Base64.encode64(signature_data),
       }
 
       File.write(signature_file_path, JSON.pretty_generate(signature_json))
@@ -77,9 +80,14 @@ module Capsium
     end
 
     def combined_data(encrypted_file = nil)
-      metadata_content = File.read(File.join(@package.path, Package::METADATA_FILE))
-      signature_content = File.read(signature_file_path).sub(/"signature": ".*"/, '"signature": ""')
-      package_enc_content = File.read(encrypted_file || File.join(@package.path, "#{@package.name}.enc"))
+      metadata_content = File.read(File.join(@package.path,
+                                             Package::METADATA_FILE))
+      signature_content = File.read(signature_file_path).sub(
+        /"signature": ".*"/, '"signature": ""'
+      )
+      package_enc_content = File.read(encrypted_file || File.join(
+        @package.path, "#{@package.name}.enc"
+      ))
 
       metadata_content + signature_content + package_enc_content
     end

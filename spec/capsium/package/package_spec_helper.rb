@@ -5,7 +5,9 @@ require "tmpdir"
 require "json"
 
 RSpec.shared_context "package setup" do |package_name, package_version, format|
-  let(:fixtures_path) { File.expand_path(File.join(__dir__, "..", "..", "fixtures")) }
+  let(:fixtures_path) do
+    File.expand_path(File.join(__dir__, "..", "..", "fixtures"))
+  end
   let(:package_path) do
     case format
     when :directory
@@ -34,8 +36,12 @@ RSpec.shared_examples "a package loader" do |metadata_data, manifest_data, route
   it "builds routes correctly" do
     content = package.routes.to_json
     parsed_content = JSON.parse(content, symbolize_names: true)
-    sorted_content_routes = parsed_content[:routes].sort_by { |route| route[:path] }
-    sorted_expected_routes = routes_data[:routes].sort_by { |route| route[:path] }
+    sorted_content_routes = parsed_content[:routes].sort_by do |route|
+      route[:path]
+    end
+    sorted_expected_routes = routes_data[:routes].sort_by do |route|
+      route[:path]
+    end
     expect(sorted_content_routes).to eq(sorted_expected_routes)
   end
 
@@ -61,7 +67,7 @@ RSpec.shared_examples "a package loader" do |metadata_data, manifest_data, route
       Dir.mktmpdir do |dir|
         storage_path = File.join(dir, "storage.json")
 
-        File.delete(storage_path) if File.exist?(storage_path)
+        FileUtils.rm_f(storage_path)
         expect(package.storage.datasets.size).to be > 0
       end
     end
@@ -75,7 +81,9 @@ end
 def sort_json(obj)
   case obj
   when Array
-    obj.map { |e| sort_json(e) }.sort_by { |e| e.is_a?(Hash) && e["file"] ? e["file"] : e }
+    obj.map do |e|
+      sort_json(e)
+    end.sort_by { |e| e.is_a?(Hash) && e["file"] ? e["file"] : e }
   when Hash
     obj.keys.sort.each_with_object({}) do |key, result|
       result[key] = sort_json(obj[key])

@@ -19,10 +19,10 @@ module Capsium
         @content_path = File.join(File.dirname(@path), Package::CONTENT_DIR)
 
         @config = if File.exist?(path)
-            ManifestConfig.from_json(File.read(path))
-          else
-            ManifestConfig.new(content: generate_manifest)
-          end
+                    ManifestConfig.from_json(File.read(path))
+                  else
+                    ManifestConfig.new(content: generate_manifest)
+                  end
       end
 
       def generate_manifest
@@ -46,9 +46,7 @@ module Capsium
 
       def save_to_file(output_path = @path)
         @config.content.sort_by!(&:file)
-        File.open(output_path, "w") do |file|
-          file.write(to_json)
-        end
+        File.write(output_path, to_json)
       end
 
       def path_to_content_file(path)

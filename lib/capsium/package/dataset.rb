@@ -12,6 +12,7 @@ module Capsium
   class Package
     class Dataset
       attr_reader :config, :data, :data_path
+
       extend Forwardable
 
       def_delegators :@config, :to_json

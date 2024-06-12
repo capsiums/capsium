@@ -7,9 +7,13 @@ require_relative "package_spec_helper"
 
 RSpec.describe Capsium::Package::Dataset do
   let(:data_path) { File.join(Dir.mktmpdir, "animals.yaml") }
-  let(:schema_path) { File.join(File.dirname(data_path), "animals_schema.yaml") }
+  let(:schema_path) do
+    File.join(File.dirname(data_path), "animals_schema.yaml")
+  end
   let(:config_path) { File.join(Dir.mktmpdir, "dataset_config.json") }
-  let(:dataset_data) { "---\nanimals:\n  - name: Lion\n    type: Mammal\n    habitat: Savannah\n" }
+  let(:dataset_data) do
+    "---\nanimals:\n  - name: Lion\n    type: Mammal\n    habitat: Savannah\n"
+  end
   let(:schema_data) do
     <<~YAML
       type: object
@@ -76,10 +80,14 @@ RSpec.describe Capsium::Package::Dataset do
     end
 
     context "when data does not conform to the schema" do
-      let(:dataset_data) { "---\nanimals:\n  - name: Lion\n    habitat: Savannah\n" } # Missing 'type' field
-
+      # Missing 'type' field
+      let(:dataset_data) do
+        "---\nanimals:\n  - name: Lion\n    habitat: Savannah\n"
+      end
       it "raises a validation error" do
-        expect { dataset.validate }.to raise_error(JSON::Schema::ValidationError)
+        expect do
+          dataset.validate
+        end.to raise_error(JSON::Schema::ValidationError)
       end
     end
   end
@@ -94,7 +102,7 @@ RSpec.describe Capsium::Package::Dataset do
 
   describe "#save_to_file" do
     it "saves dataset data to a JSON file" do
-      json_path = data_path.chomp(".yaml") + ".json"
+      json_path = "#{data_path.chomp('.yaml')}.json"
       dataset.save_to_file(json_path)
       saved_data = JSON.parse(File.read(json_path), symbolize_names: true)
       expected_data = config_data
