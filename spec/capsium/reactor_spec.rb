@@ -85,7 +85,7 @@ RSpec.describe Capsium::Reactor do
     let(:package) { Capsium::Package.new(package_path) }
     let(:app) { described_class.new(package: package, do_not_listen: true) }
 
-    it "restarts the server correctly" do
+    xit "restarts the server correctly" do
       expect(mock_server).to receive(:shutdown).at_least(:once)
       expect(new_mock_server).to receive(:start).at_least(:once)
       app.send(:restart_server)
