@@ -21,34 +21,37 @@ module Capsium
         @dir = File.dirname(path)
         @datasets_path = File.join(@dir, DATA_DIR)
         @config = if File.exist?(path)
-            StorageConfig.from_json(File.read(path))
-          else
-            StorageConfig.new(datasets: generate_datasets)
-          end
+                    StorageConfig.from_json(File.read(path))
+                  else
+                    StorageConfig.new(datasets: generate_datasets)
+                  end
         @datasets = load_datasets || generate_datasets
       end
 
       def load_datasets
         if File.exist?(@path)
           storage_data = StorageConfig.from_json(File.read(@path))
-          storage_data.datasets.map { |dataset_config| dataset_config.to_dataset(@datasets_path) }
+          storage_data.datasets.map do |dataset_config|
+            dataset_config.to_dataset(@datasets_path)
+          end
         end
       end
 
       def save_to_file(output_path = @path)
-        storage_config = StorageConfig.new(datasets: @datasets.map { |dataset| DatasetConfig.from_dataset(dataset) })
-        File.open(output_path, "w") do |file|
-          file.write(storage_config.to_json)
-        end
+        storage_config = StorageConfig.new(datasets: @datasets.map do |dataset|
+                                                       DatasetConfig.from_dataset(dataset)
+                                                     end)
+        File.write(output_path, storage_config.to_json)
       end
 
       def generate_datasets
-        datasets = []
         paths = File.join(@datasets_path, "*.{yaml,yml,json,csv,tsv,sqlite,db}")
-        Dir.glob(paths).each do |file_path|
-          datasets << Dataset.new(config: DatasetConfig.new(name: File.basename(file_path, ".*"), source: file_path, format: detect_format(file_path)))
+        Dir.glob(paths).map do |file_path|
+          Dataset.new(config: DatasetConfig.new(
+            name: File.basename(file_path,
+                                ".*"), source: file_path, format: detect_format(file_path)
+          ))
         end
-        datasets
       end
 
       private

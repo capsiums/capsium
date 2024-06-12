@@ -6,7 +6,9 @@ require_relative "package_spec_helper"
 
 RSpec.describe Capsium::Package::Metadata do
   let(:metadata_path) { File.join(Dir.mktmpdir, "metadata.json") }
-  let(:metadata_data) { { "name" => "test_package", "version" => "0.1.0", "dependencies" => [] } }
+  let(:metadata_data) do
+    { "name" => "test_package", "version" => "0.1.0", "dependencies" => [] }
+  end
   let(:metadata) { described_class.new(metadata_path) }
 
   before do
@@ -14,7 +16,7 @@ RSpec.describe Capsium::Package::Metadata do
   end
 
   after do
-    File.delete(metadata_path) if File.exist?(metadata_path)
+    FileUtils.rm_f(metadata_path)
   end
 
   describe "#initialize" do

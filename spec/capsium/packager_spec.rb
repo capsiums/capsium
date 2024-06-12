@@ -10,12 +10,14 @@ RSpec.describe Capsium::Packager do
   let(:tmpdir) { Dir.mktmpdir }
 
   after do
-    FileUtils.remove_entry(tmpdir) if File.exist?(tmpdir)
+    FileUtils.rm_rf(tmpdir)
   end
 
   shared_examples "a packager" do |package_name, package_version, expected_files|
     let(:original_dir) { File.join(fixtures_path, package_name) }
-    let(:existing_cap_file) { File.join(fixtures_path, "#{package_name}-#{package_version}.cap") }
+    let(:existing_cap_file) do
+      File.join(fixtures_path, "#{package_name}-#{package_version}.cap")
+    end
     let(:temporary_package_dir) { File.join(tmpdir, package_name) }
 
     before do

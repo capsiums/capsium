@@ -46,7 +46,7 @@ module Capsium
       def write_file(relative_path, content)
         output_path = File.join(@output_directory, relative_path)
         FileUtils.mkdir_p(File.dirname(output_path))
-        File.open(output_path, "w") { |file| file.write(content) }
+        File.write(output_path, content)
       end
 
       def copy_content_files(package)
@@ -59,9 +59,12 @@ module Capsium
       end
 
       def generate_index_html(package)
-        root_route = package.routes.config.routes.find { |route| route.path == "/" }
+        root_route = package.routes.config.routes.find do |route|
+          route.path == "/"
+        end
         if root_route
-          index_path = File.join(package.instance_variable_get(:@path), root_route.target.file)
+          index_path = File.join(package.instance_variable_get(:@path),
+                                 root_route.target.file)
           index_content = File.read(index_path)
           write_file("index.html", index_content)
         else
@@ -75,10 +78,10 @@ module Capsium
           <html>
           <head>
             <meta charset="utf-8">
-            <title>#{package.metadata.name || "Capsium Jekyll Site"}</title>
+            <title>#{package.metadata.name || 'Capsium Jekyll Site'}</title>
           </head>
           <body>
-            <h1>Welcome to #{package.metadata.name || "Capsium Jekyll Site"}</h1>
+            <h1>Welcome to #{package.metadata.name || 'Capsium Jekyll Site'}</h1>
             <p>This site was generated from a Capsium package.</p>
           </body>
           </html>

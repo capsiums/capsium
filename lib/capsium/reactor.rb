@@ -9,7 +9,8 @@ module Capsium
   class Reactor
     DEFAULT_PORT = 8864
 
-    attr_accessor :package, :package_path, :routes, :port, :server, :server_thread
+    attr_accessor :package, :package_path, :routes, :port, :server,
+                  :server_thread
 
     def initialize(package:, port: DEFAULT_PORT, do_not_listen: false)
       @package = package.is_a?(String) ? Package.new(package) : package
@@ -79,7 +80,7 @@ module Capsium
 
     def restart_server
       @server.shutdown
-      @server_thread.join if @server_thread
+      @server_thread&.join
       load_package
       setup_server(false)
       mount_routes

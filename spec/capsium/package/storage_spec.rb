@@ -9,8 +9,14 @@ RSpec.describe Capsium::Package::Storage do
   let(:data_dir) { File.join(File.dirname(storage_path), "data") }
   let(:animals_yaml_path) { File.join(data_dir, "animals.yaml") }
   let(:animals_schema_path) { File.join(data_dir, "animals_schema.yaml") }
-  let(:fixtures_animals_yaml_path) { File.expand_path(File.join(__dir__, "..", "..", "fixtures", "data_package", "data", "animals.yaml")) }
-  let(:fixtures_animals_schema_path) { File.expand_path(File.join(__dir__, "..", "..", "fixtures", "data_package", "data", "animals_schema.yaml")) }
+  let(:fixtures_animals_yaml_path) do
+    File.expand_path(File.join(__dir__, "..", "..", "fixtures", "data_package",
+                               "data", "animals.yaml"))
+  end
+  let(:fixtures_animals_schema_path) do
+    File.expand_path(File.join(__dir__, "..", "..", "fixtures", "data_package",
+                               "data", "animals_schema.yaml"))
+  end
 
   let(:storage_data) do
     {

@@ -20,16 +20,14 @@ module Capsium
       def initialize(path)
         @path = path
         @config = if File.exist?(path)
-            MetadataData.from_json(File.read(path))
-          else
-            MetadataData.new
-          end
+                    MetadataData.from_json(File.read(path))
+                  else
+                    MetadataData.new
+                  end
       end
 
       def save_to_file(output_path = @path)
-        File.open(output_path, "w") do |file|
-          file.write(to_json)
-        end
+        File.write(output_path, to_json)
       end
     end
   end

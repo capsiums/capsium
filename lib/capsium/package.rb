@@ -16,7 +16,8 @@ require_relative "packager"
 
 module Capsium
   class Package
-    attr_reader :name, :path, :manifest, :metadata, :routes, :datasets, :storage, :load_type
+    attr_reader :name, :path, :manifest, :metadata, :routes, :datasets,
+                :storage, :load_type
 
     MANIFEST_FILE = "manifest.json"
     METADATA_FILE = "metadata.json"
@@ -106,12 +107,15 @@ module Capsium
     end
 
     def content_files
-      Dir.glob(File.join(content_path, "**", "*")).select { |file| File.file?(file) }
+      Dir.glob(File.join(content_path, "**", "*")).select do |file|
+        File.file?(file)
+      end
     end
 
     def determine_load_type(path)
       return :directory if File.directory?(path)
       return :cap_file if File.extname(path) == ".cap"
+
       :unsaved
     end
 

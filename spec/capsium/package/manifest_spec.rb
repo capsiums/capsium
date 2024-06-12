@@ -22,7 +22,7 @@ RSpec.describe Capsium::Package::Manifest do
   end
 
   after do
-    File.delete(manifest_path) if File.exist?(manifest_path)
+    FileUtils.rm_f(manifest_path)
   end
 
   describe "#initialize" do
