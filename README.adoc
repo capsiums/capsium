@@ -140,6 +140,15 @@ capsium package pack -f spec/fixtures/bare_package
 ====
 
 
+.Sample `unpack` command
+====
+[source,bash]
+----
+capsium package unpack bare_package-0.1.0.cap my_bare_package
+----
+====
+
+
 
 == CLI: Reactor
 
