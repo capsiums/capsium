@@ -1,5 +1,18 @@
 {
+  "identifier": "capsium://example.com/bare-package",
   "name": "bare_package",
   "version": "0.1.0",
+  "description": "A bare package for testing",
+  "author": "Test Author",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/bare-package.git"
+  },
+  "accessMode": {
+    "read": true,
+    "write": false,
+    "execute": false
+  },
   "dependencies": []
 }

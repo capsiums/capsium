@@ -1,6 +1,18 @@
 {
+  "identifier": "capsium://example.com/data-package",
   "name": "data_package",
   "version": "0.1.0",
   "description": "A package with data",
+  "author": "Data Package Author",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/data-package.git"
+  },
+  "accessMode": {
+    "read": true,
+    "write": false,
+    "execute": false
+  },
   "dependencies": []
 }
