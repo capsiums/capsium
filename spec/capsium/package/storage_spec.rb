@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "capsium/package/storage"
 require_relative "package_spec_helper"
 
 RSpec.describe Capsium::Package::Storage do
@@ -25,9 +24,9 @@ RSpec.describe Capsium::Package::Storage do
           "name" => "animals",
           "source" => "data/animals.yaml",
           "format" => "yaml",
-          "schema" => "data/animals_schema.yaml",
-        },
-      ],
+          "schema" => "data/animals_schema.yaml"
+        }
+      ]
     }
   end
   let(:storage) { described_class.new(storage_path) }
@@ -46,7 +45,7 @@ RSpec.describe Capsium::Package::Storage do
   describe "#load_datasets" do
     it "loads datasets correctly from JSON file" do
       datasets = storage.load_datasets
-      expect(datasets.map(&:config).map(&:to_hash)).to eq(storage_data["datasets"])
+      expect(datasets.map { |dataset| dataset.config.to_hash }).to eq(storage_data["datasets"])
     end
   end
 

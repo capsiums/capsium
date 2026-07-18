@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "capsium/package/manifest"
 require_relative "package_spec_helper"
 
 RSpec.describe Capsium::Package::Manifest do
@@ -10,9 +9,9 @@ RSpec.describe Capsium::Package::Manifest do
     {
       "content" => [
         { "file" => "example.css", "mime" => "text/css" },
-        { "file" => "example.js", "mime" => "application/javascript" },
-        { "file" => "index.html", "mime" => "text/html" },
-      ],
+        { "file" => "example.js", "mime" => "text/javascript" },
+        { "file" => "index.html", "mime" => "text/html" }
+      ]
     }
   end
   let(:manifest) { described_class.new(manifest_path) }

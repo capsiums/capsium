@@ -21,7 +21,8 @@ RSpec.shared_context "package setup" do |package_name, package_version, format|
   let(:package) { Capsium::Package.new(package_path) }
 end
 
-RSpec.shared_examples "a package loader" do |metadata_data, manifest_data, routes_data, storage_data = nil|
+RSpec.shared_examples "a package loader" do |metadata_data, manifest_data,
+                                             routes_data, storage_data = nil|
   it "loads metadata correctly" do
     expect(package.metadata.name).to eq(metadata_data[:name])
     expect(package.metadata.version).to eq(metadata_data[:version])
@@ -74,21 +75,26 @@ RSpec.shared_examples "a package loader" do |metadata_data, manifest_data, route
   end
 end
 
-def sorted_pretty_json(json_str)
-  JSON.pretty_generate(sort_json(JSON.parse(json_str)))
+module JsonHelpers
+  def sorted_pretty_json(json_str)
+    JSON.pretty_generate(sort_json(JSON.parse(json_str)))
+  end
+
+  def sort_json(obj)
+    case obj
+    when Array
+      obj.map { |e| sort_json(e) }
+         .sort_by { |e| e.is_a?(Hash) && e["file"] ? e["file"] : e }
+    when Hash
+      obj.keys.sort.to_h do |key|
+        [key, sort_json(obj[key])]
+      end
+    else
+      obj
+    end
+  end
 end
 
-def sort_json(obj)
-  case obj
-  when Array
-    obj.map do |e|
-      sort_json(e)
-    end.sort_by { |e| e.is_a?(Hash) && e["file"] ? e["file"] : e }
-  when Hash
-    obj.keys.sort.each_with_object({}) do |key, result|
-      result[key] = sort_json(obj[key])
-    end
-  else
-    obj
-  end
+RSpec.configure do |config|
+  config.include JsonHelpers
 end

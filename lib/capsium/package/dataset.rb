@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require "json"
-require "yaml"
 require "csv"
-require "sqlite3"
-require "shale"
+require "forwardable"
+require "json"
 require "json-schema"
-require_relative "dataset_config"
+require "shale"
+require "sqlite3"
+require "yaml"
 
 module Capsium
   class Package
@@ -39,15 +39,12 @@ module Capsium
         return unless @config.schema
 
         schema_path = File.join(File.dirname(@data_path), @config.schema)
-        schema = YAML.load_file(schema_path) if @config.format == "yaml"
-        schema = JSON.parse(File.read(schema_path)) if @config.format == "json"
-
-        case @config.format
-        when "yaml" then YAML.load_file(@data_path)
-        when "json" then JSON.parse(File.read(@data_path))
-        else
-          raise "Validation is only supported for YAML and JSON formats"
-        end
+        schema = case @config.format
+                 when "yaml" then YAML.load_file(schema_path)
+                 when "json" then JSON.parse(File.read(schema_path))
+                 else
+                   raise "Validation is only supported for YAML and JSON formats"
+                 end
 
         JSON::Validator.validate!(schema, @data.to_json)
       end

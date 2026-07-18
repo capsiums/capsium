@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-# lib/capsium/package/metadata.rb
-require "shale"
 require "forwardable"
-require_relative "metadata_config"
+require "shale"
 
 module Capsium
   class Package
@@ -11,7 +9,9 @@ module Capsium
       attr_reader :path, :config
 
       extend Forwardable
+
       def_delegator :@config, :to_json
+      def_delegator :@config, :to_hash
       def_delegator :@config, :name
       def_delegator :@config, :version
       def_delegator :@config, :description # Delegate description method

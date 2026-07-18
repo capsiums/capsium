@@ -1,12 +1,39 @@
-inherit_from:
-  - https://raw.githubusercontent.com/riboseinc/oss-guides/master/ci/rubocop.yml
-
-# local repo-specific modifications
-# ...
+plugins:
+  - rubocop-performance
 
 AllCops:
-  TargetRubyVersion: 2.6
+  TargetRubyVersion: 3.2
   NewCops: enable
+  SuggestExtensions: false
   Exclude:
-    - 'lib/sts/mapper.rb'
     - 'vendor/**/*'
+
+Layout/LineLength:
+  Max: 100
+
+# Project convention: double-quoted string literals.
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+# Classes are intentionally undocumented for now; API docs land with a
+# later phase together with the RBS signatures.
+Style/Documentation:
+  Enabled: false
+
+# RSpec example groups and the gemspec are block-heavy by nature.
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'capsium.gemspec'
+
+Metrics/ClassLength:
+  Max: 120
+
+Metrics/MethodLength:
+  Max: 25
+
+Metrics/AbcSize:
+  Max: 30
+
+Metrics/CyclomaticComplexity:
+  Max: 8

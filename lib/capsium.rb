@@ -1,15 +1,14 @@
 # frozen_string_literal: true
 
-require_relative "capsium/version"
-require "shale"
-require "shale/adapter/nokogiri"
-Shale.xml_adapter = Shale::Adapter::Nokogiri
-
 module Capsium
   class Error < StandardError; end
 
-  # Your code goes here...
+  autoload :VERSION, "capsium/version"
+  autoload :Cli, "capsium/cli"
+  autoload :Converters, "capsium/converters"
+  autoload :Package, "capsium/package"
+  autoload :Packager, "capsium/packager"
+  autoload :Protector, "capsium/protector"
+  autoload :Reactor, "capsium/reactor"
+  autoload :ThorExt, "capsium/thor_ext"
 end
-
-require_relative "capsium/package"
-require_relative "capsium/packager"

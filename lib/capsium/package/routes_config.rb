@@ -21,13 +21,13 @@ module Capsium
       def validate(manifest, storage)
         if file
           target_path = fs_path(manifest)
-          unless target_path && File.exist?(target_path) && target_path.to_s.start_with?(manifest.content_path.to_s)
-            raise "Route target does not exist or is outside of the content directory: #{target_path}"
+          in_content_dir = target_path.to_s.start_with?(manifest.content_path.to_s)
+          unless target_path && File.exist?(target_path) && in_content_dir
+            raise "Route target does not exist or is outside of the content " \
+                  "directory: #{target_path}"
           end
         elsif dataset
-          unless storage.datasets.any? { |ds| ds.config.name == dataset }
-            raise "Dataset target does not exist: #{dataset}"
-          end
+          raise "Dataset target does not exist: #{dataset}" unless storage.dataset(dataset)
         else
           raise "Route target must have either a file or a dataset"
         end

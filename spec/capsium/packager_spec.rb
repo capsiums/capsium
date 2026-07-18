@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "capsium/packager"
 require "fileutils"
 require "tmpdir"
 
@@ -98,7 +97,7 @@ RSpec.describe Capsium::Packager do
         "content/index.html",
         "content/example.css",
         "content/example.js",
-        "metadata.json",
+        "metadata.json"
       ]
     end
 
@@ -106,7 +105,7 @@ RSpec.describe Capsium::Packager do
       "content/index.html",
       "content/example.css",
       "content/example.js",
-      "metadata.json",
+      "metadata.json"
     ]
   end
 
@@ -121,7 +120,7 @@ RSpec.describe Capsium::Packager do
         "metadata.json",
         "data/animals.yaml",
         "data/animals_schema.yaml",
-        "storage.json",
+        "storage.json"
       ]
     end
 
@@ -132,7 +131,7 @@ RSpec.describe Capsium::Packager do
       "metadata.json",
       "data/animals.yaml",
       "data/animals_schema.yaml",
-      "storage.json",
+      "storage.json"
     ]
   end
 end

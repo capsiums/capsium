@@ -1,23 +1,29 @@
 # frozen_string_literal: true
 
-# lib/capsium/package.rb
 require "fileutils"
-require "json"
-require "yaml"
-require "csv"
-require "sqlite3"
+require "pathname"
+require "tmpdir"
 require "zip"
-require_relative "package/manifest"
-require_relative "package/metadata"
-require_relative "package/routes"
-require_relative "package/dataset"
-require_relative "package/storage"
-require_relative "packager"
 
 module Capsium
   class Package
-    attr_reader :name, :path, :manifest, :metadata, :routes, :datasets,
-                :storage, :load_type
+    autoload :Dataset, "capsium/package/dataset"
+    autoload :DatasetConfig, "capsium/package/dataset_config"
+    autoload :Dependency, "capsium/package/metadata_config"
+    autoload :Manifest, "capsium/package/manifest"
+    autoload :ManifestConfig, "capsium/package/manifest_config"
+    autoload :ManifestConfigItem, "capsium/package/manifest_config"
+    autoload :Metadata, "capsium/package/metadata"
+    autoload :MetadataData, "capsium/package/metadata_config"
+    autoload :Route, "capsium/package/routes_config"
+    autoload :RouteTarget, "capsium/package/routes_config"
+    autoload :Routes, "capsium/package/routes"
+    autoload :RoutesConfig, "capsium/package/routes_config"
+    autoload :Storage, "capsium/package/storage"
+    autoload :StorageConfig, "capsium/package/storage_config"
+
+    attr_reader :name, :path, :manifest, :metadata, :routes, :storage,
+                :load_type
 
     MANIFEST_FILE = "manifest.json"
     METADATA_FILE = "metadata.json"
@@ -63,7 +69,7 @@ module Capsium
 
       # Extract metadata.json first
       Zip::File.open(file_path) do |zip_file|
-        if entry = zip_file.find_entry(METADATA_FILE)
+        if (entry = zip_file.find_entry(METADATA_FILE))
           entry.extract(metadata_path)
         end
       end
@@ -102,8 +108,8 @@ module Capsium
       FileUtils.remove_entry(@path)
     end
 
-    def package_files
-      @packager.package_files
+    def datasets
+      storage.datasets
     end
 
     def content_files
