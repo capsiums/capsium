@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "capsium/package"
 require_relative "package/package_spec_helper"
 
 RSpec.describe Capsium::Package do
@@ -20,8 +19,8 @@ RSpec.describe Capsium::Package do
                            { file: "content/index.html", mime: "text/html" },
                            { file: "content/example.css", mime: "text/css" },
                            { file: "content/example.js",
-                             mime: "application/javascript" },
-                         ],
+                             mime: "text/javascript" }
+                         ]
                        },
                        {
                          routes: [
@@ -34,8 +33,8 @@ RSpec.describe Capsium::Package do
                            { path: "/example.css",
                              target: { file: "content/example.css" } },
                            { path: "/example.js",
-                             target: { file: "content/example.js" } },
-                         ],
+                             target: { file: "content/example.js" } }
+                         ]
                        }
 
       it "tracks the load type correctly" do
@@ -59,12 +58,12 @@ RSpec.describe Capsium::Package do
                            { file: "content/index.html", mime: "text/html" },
                            { file: "content/example.css", mime: "text/css" },
                            { file: "content/example.js",
-                             mime: "application/javascript" },
+                             mime: "text/javascript" },
                            { file: "data/animals.yaml",
                              mime: "application/x-yaml" },
                            { file: "data/animals_schema.yaml",
-                             mime: "application/x-yaml" },
-                         ],
+                             mime: "application/x-yaml" }
+                         ]
                        },
                        {
                          routes: [
@@ -79,8 +78,8 @@ RSpec.describe Capsium::Package do
                            { path: "/example.js",
                              target: { file: "content/example.js" } },
                            { path: "/api/v1/data/animals",
-                             target: { dataset: "animals" } },
-                         ],
+                             target: { dataset: "animals" } }
+                         ]
                        },
                        {
                          datasets: [
@@ -88,9 +87,9 @@ RSpec.describe Capsium::Package do
                              name: "animals",
                              source: "data/animals.yaml",
                              format: "yaml",
-                             schema: "data/animals_schema.yaml",
-                           },
-                         ],
+                             schema: "data/animals_schema.yaml"
+                           }
+                         ]
                        }
 
       it "tracks the load type correctly" do
@@ -114,8 +113,8 @@ RSpec.describe Capsium::Package do
                            { file: "content/index.html", mime: "text/html" },
                            { file: "content/example.css", mime: "text/css" },
                            { file: "content/example.js",
-                             mime: "application/javascript" },
-                         ],
+                             mime: "text/javascript" }
+                         ]
                        },
                        {
                          routes: [
@@ -128,8 +127,8 @@ RSpec.describe Capsium::Package do
                            { path: "/example.css",
                              target: { file: "content/example.css" } },
                            { path: "/example.js",
-                             target: { file: "content/example.js" } },
-                         ],
+                             target: { file: "content/example.js" } }
+                         ]
                        }
 
       it "tracks the load type correctly" do
@@ -153,12 +152,12 @@ RSpec.describe Capsium::Package do
                            { file: "content/index.html", mime: "text/html" },
                            { file: "content/example.css", mime: "text/css" },
                            { file: "content/example.js",
-                             mime: "application/javascript" },
+                             mime: "text/javascript" },
                            { file: "data/animals.yaml",
                              mime: "application/x-yaml" },
                            { file: "data/animals_schema.yaml",
-                             mime: "application/x-yaml" },
-                         ],
+                             mime: "application/x-yaml" }
+                         ]
                        },
                        {
                          routes: [
@@ -173,8 +172,8 @@ RSpec.describe Capsium::Package do
                            { path: "/example.js",
                              target: { file: "content/example.js" } },
                            { path: "/api/v1/data/animals",
-                             target: { dataset: "animals" } },
-                         ],
+                             target: { dataset: "animals" } }
+                         ]
                        },
                        {
                          datasets: [
@@ -182,9 +181,9 @@ RSpec.describe Capsium::Package do
                              name: "animals",
                              source: "data/animals.yaml",
                              format: "yaml",
-                             schema: "data/animals_schema.yaml",
-                           },
-                         ],
+                             schema: "data/animals_schema.yaml"
+                           }
+                         ]
                        }
 
       it "tracks the load type correctly" do

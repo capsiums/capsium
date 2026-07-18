@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "capsium/package/dataset"
-require "capsium/package/dataset_config"
 require_relative "package_spec_helper"
 
 RSpec.describe Capsium::Package::Dataset do
@@ -42,7 +40,7 @@ RSpec.describe Capsium::Package::Dataset do
       name: "animals",
       source: "animals.yaml",
       format: "yaml",
-      schema: "animals_schema.yaml",
+      schema: "animals_schema.yaml"
     }
   end
   let(:config) do
@@ -50,7 +48,7 @@ RSpec.describe Capsium::Package::Dataset do
       name: "animals",
       source: "animals.yaml",
       format: "yaml",
-      schema: "animals_schema.yaml",
+      schema: "animals_schema.yaml"
     )
   end
   let(:dataset) { described_class.new(config: config, data_path: data_path) }

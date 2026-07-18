@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "capsium/package/metadata"
 require_relative "package_spec_helper"
 
 RSpec.describe Capsium::Package::Metadata do

@@ -1,40 +1,42 @@
 # frozen_string_literal: true
 
-# lib/capsium/package/storage.rb
-require "json"
+require "forwardable"
 require "shale"
-require_relative "dataset"
-require_relative "storage_config"
 
 module Capsium
   class Package
     class Storage
       extend Forwardable
-      attr_reader :config
 
-      def_delegators :@config, :to_json
+      attr_reader :config, :datasets
 
-      attr_reader :datasets
+      def_delegators :@config, :to_json, :to_hash
 
       def initialize(path)
         @path = path
         @dir = File.dirname(path)
         @datasets_path = File.join(@dir, DATA_DIR)
-        @config = if File.exist?(path)
-                    StorageConfig.from_json(File.read(path))
-                  else
-                    StorageConfig.new(datasets: generate_datasets)
-                  end
-        @datasets = load_datasets || generate_datasets
+        if File.exist?(path)
+          @config = StorageConfig.from_json(File.read(path))
+          @datasets = load_datasets
+        else
+          @datasets = generate_datasets
+          @config = StorageConfig.new(datasets: @datasets.map do |dataset|
+            DatasetConfig.from_dataset(dataset)
+          end)
+        end
       end
 
       def load_datasets
-        if File.exist?(@path)
-          storage_data = StorageConfig.from_json(File.read(@path))
-          storage_data.datasets.map do |dataset_config|
-            dataset_config.to_dataset(@datasets_path)
-          end
+        return unless File.exist?(@path)
+
+        @config.datasets.map do |dataset_config|
+          dataset_config.to_dataset(@datasets_path)
         end
+      end
+
+      def dataset(name)
+        @datasets.find { |ds| ds.config.name == name }
       end
 
       def save_to_file(output_path = @path)

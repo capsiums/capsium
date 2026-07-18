@@ -8,7 +8,7 @@ require "json"
 module Capsium
   class Protector
     def initialize(package, encryption_metadata = nil,
-digital_signature_metadata = nil)
+                   digital_signature_metadata = nil)
       @package = package
       @encryption_metadata = encryption_metadata
       @digital_signature_metadata = digital_signature_metadata
@@ -72,7 +72,7 @@ digital_signature_metadata = nil)
       signature_json = {
         algorithm: @digital_signature_metadata[:algorithm],
         certificateType: @digital_signature_metadata[:certificateType],
-        signature: Base64.encode64(signature_data),
+        signature: Base64.encode64(signature_data)
       }
 
       File.write(signature_file_path, JSON.pretty_generate(signature_json))

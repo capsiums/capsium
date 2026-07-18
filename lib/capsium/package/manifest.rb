@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-# lib/capsium/package/manifest.rb
-require "json"
+require "forwardable"
 require "marcel"
+require "pathname"
 require "shale"
-require_relative "manifest_config"
 
 module Capsium
   class Package
     class Manifest
       extend Forwardable
+
       attr_accessor :path, :content_path, :config
 
-      def_delegators :@config, :to_json
+      def_delegators :@config, :to_json, :to_hash
 
       def initialize(path)
         @path = path
@@ -33,7 +33,7 @@ module Capsium
         files.sort.map do |file_path|
           ManifestConfigItem.new(
             file: relative_path(file_path),
-            mime: mime_from_path(file_path),
+            mime: mime_from_path(file_path)
           )
         end
       end
@@ -69,7 +69,7 @@ module Capsium
         Marcel::MimeType.for(
           Pathname.new(path),
           name: File.basename(path),
-          extension: File.extname(path),
+          extension: File.extname(path)
         )
       end
     end

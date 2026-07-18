@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-# lib/capsium/packager.rb
-require "json"
 require "fileutils"
-require "rubygems"
+require "pathname"
+require "tmpdir"
 require "zip"
 
 module Capsium

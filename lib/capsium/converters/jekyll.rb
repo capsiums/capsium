@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-# lib/capsium/converters/jekyll.rb
 require "fileutils"
-require "json"
-require "capsium/package"
+require "pathname"
+require "yaml"
 
 module Capsium
   module Converters
@@ -38,7 +37,7 @@ module Capsium
           "baseurl" => "",
           "url" => "",
           "markdown" => "kramdown",
-          "theme" => "minima",
+          "theme" => "minima"
         }
         write_file("_config.yml", config.to_yaml)
       end
@@ -51,7 +50,7 @@ module Capsium
 
       def copy_content_files(package)
         package.content_files.each do |file_path|
-          relative_path = Pathname.new(file_path).relative_path_from(Pathname.new(package.instance_variable_get(:@path)))
+          relative_path = Pathname.new(file_path).relative_path_from(Pathname.new(package.path))
           output_path = File.join(@output_directory, relative_path)
           FileUtils.mkdir_p(File.dirname(output_path))
           FileUtils.cp(file_path, output_path)
@@ -63,8 +62,7 @@ module Capsium
           route.path == "/"
         end
         if root_route
-          index_path = File.join(package.instance_variable_get(:@path),
-                                 root_route.target.file)
+          index_path = File.join(package.path, root_route.target.file)
           index_content = File.read(index_path)
           write_file("index.html", index_content)
         else

@@ -1,19 +1,15 @@
 # frozen_string_literal: true
 
-# lib/capsium/package/routes.rb
-require "json"
-require "fileutils"
-require_relative "routes_config"
+require "forwardable"
 
 module Capsium
   class Package
     class Routes
       extend Forwardable
-      attr_reader :config
 
-      def_delegators :@config, :to_json
+      attr_reader :path, :config, :manifest, :storage
 
-      attr_reader :path, :config, :index, :manifest, :storage
+      def_delegators :@config, :to_hash
 
       ROUTES_FILE = "routes.json"
       DEFAULT_INDEX_TARGET = "content/index.html"
@@ -88,7 +84,9 @@ module Capsium
 
         target_path = @manifest.path_to_content_file(index_path)
         raise "Index file does not exist: #{target_path}" unless File.exist?(target_path)
-        raise "Index file is not an HTML file: #{target_path}" unless File.extname(target_path).downcase == ".html"
+        return if File.extname(target_path).downcase == ".html"
+
+        raise "Index file is not an HTML file: #{target_path}"
       end
 
       def validate_route_target(route, target)

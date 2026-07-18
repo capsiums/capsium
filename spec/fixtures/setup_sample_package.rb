@@ -64,8 +64,8 @@ manifest_data = {
   content: {
     "content/index.html" => "text/html",
     "content/example.css" => "text/css",
-    "content/example.js" => "application/javascript",
-  },
+    "content/example.js" => "application/javascript"
+  }
 }
 File.write(File.join(base_dir, "manifest.json"),
            JSON.pretty_generate(manifest_data))
@@ -74,7 +74,7 @@ File.write(File.join(base_dir, "manifest.json"),
 metadata_data = {
   name: "sample_package",
   version: "0.1.0",
-  dependencies: [],
+  dependencies: []
 }
 File.write(File.join(base_dir, "metadata.json"),
            JSON.pretty_generate(metadata_data))
@@ -87,8 +87,8 @@ routes_data = {
     "/index.html": "content/index.html",
     "/example.css": "content/example.css",
     "/example.js": "content/example.js",
-    "/api/v1/data/animals": { type: "dataset", name: "animals" },
-  },
+    "/api/v1/data/animals": { type: "dataset", name: "animals" }
+  }
 }
 File.write(File.join(base_dir, "routes.json"),
            JSON.pretty_generate(routes_data))
@@ -100,9 +100,9 @@ storage_data = {
       name: "animals",
       source: "data/animals.yaml",
       format: "yaml",
-      schema: "data/animals_schema.yaml",
-    },
-  ],
+      schema: "data/animals_schema.yaml"
+    }
+  ]
 }
 File.write(File.join(base_dir, "storage.json"),
            JSON.pretty_generate(storage_data))

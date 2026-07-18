@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "capsium/converters/jekyll"
 
 RSpec.describe Capsium::Converters::Jekyll do
   let(:package_file) { "spec/fixtures/bare_package-0.1.0.cap" }

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "capsium/cli"
+require File.expand_path("../lib/capsium", __dir__)
 
 Capsium::Cli.start(ARGV)

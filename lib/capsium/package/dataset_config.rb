@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "shale"
 
 module Capsium
@@ -20,7 +22,7 @@ module Capsium
           name: dataset.config.name,
           source: dataset.config.source,
           format: dataset.config.format,
-          schema: dataset.config.schema,
+          schema: dataset.config.schema
         )
       end
     end
