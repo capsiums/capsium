@@ -76,6 +76,14 @@ RSpec.describe Capsium::Package::Validator do
       expect(result.messages).to include("external reference in content/external.html")
     end
 
+    it "passes content with binary resources" do
+      png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0xFF, 0xFE].pack("C*")
+      File.binwrite(File.join(package_copy, "content", "image.png"), png)
+      FileUtils.rm(File.join(package_copy, "security.json"))
+      result = check("content", package_copy)
+      expect(result).to be_ok
+    end
+
     it "fails routes when the index is missing" do
       routes = JSON.parse(File.read(File.join(package_copy, "routes.json")))
       routes.delete("index")

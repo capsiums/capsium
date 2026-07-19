@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "json"
+require "marcel"
+require "pathname"
 require "tmpdir"
 
 module Capsium
@@ -15,7 +17,8 @@ module Capsium
         end
       end
 
-      EXTERNAL_REFERENCE_PATTERN = %r{(?:src|href)\s*=\s*["']https?://}i
+      EXTERNAL_REFERENCE_PATTERN = %r{(?:src|href)\s*=\s*["']https?://}in
+      TEXT_CONTENT_MIME = %r{\Atext/|application/(json|javascript|xml)|image/svg\+xml}
 
       def initialize(package_path)
         @given_path = package_path
@@ -117,11 +120,17 @@ module Capsium
 
       def content_check
         offenders = Dir.glob(File.join(@package_path, CONTENT_DIR, "**", "*")).select do |file|
-          File.file?(file) && File.read(file).match?(EXTERNAL_REFERENCE_PATTERN)
+          File.file?(file) && text_file?(file) &&
+            File.binread(file).match?(EXTERNAL_REFERENCE_PATTERN)
         end
         result("content", offenders.map do |file|
           "external reference in #{file.delete_prefix("#{@package_path}/")}"
         end)
+      end
+
+      def text_file?(path)
+        mime = Marcel::MimeType.for(Pathname.new(path), name: File.basename(path))
+        mime.match?(TEXT_CONTENT_MIME)
       end
 
       def metadata_path(file_name)
