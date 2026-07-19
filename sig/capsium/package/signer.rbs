@@ -1,0 +1,50 @@
+module Capsium
+  class Package
+    # Signs and verifies Capsium packages with RSA-SHA256 digital
+    # signatures (05x-packaging "Digital Signature Using X.509",
+    # 05x-security "Digital Signatures"). The signed payload is the
+    # concatenation, in sorted package-relative path order, of the raw
+    # bytes of every file covered by the security.json integrity
+    # checksums (everything except security.json and signature.sig).
+    class Signer
+      ALGORITHM: String
+      MIN_KEY_BITS: Integer
+
+      # Package-relative name of the embedded public key PEM recorded in
+      # security.json digitalSignatures.publicKey.
+      PUBLIC_KEY_FILE: String
+
+      # Structural problems: no signature declared, missing signature or
+      # key files, unloadable keys, checksum-covered files missing.
+      class SignatureError < Capsium::Error
+      end
+
+      # A signature is declared but does not match the package contents.
+      class SignatureMismatchError < SignatureError
+      end
+
+      # Signature operations requested on an unsigned package.
+      class UnsignedPackageError < SignatureError
+      end
+
+      attr_reader package_path: String
+
+      def initialize: (String package_path) -> void
+
+      # Signs the package directory in place: embeds the public key PEM,
+      # regenerates security.json (checksums plus digitalSignatures) and
+      # writes the raw RSA-SHA256 signature to signature.sig. Returns the
+      # path of the written signature file.
+      def sign: (String private_key_path, ?String? certificate_path) -> String
+
+      # True when the declared signature verifies against the payload;
+      # false on mismatch. Raises typed SignatureError subclasses on
+      # structural problems.
+      def verify: (?String? public_key_path) -> bool
+
+      def verify!: (?String? public_key_path) -> bool
+
+      def signed?: () -> bool
+    end
+  end
+end

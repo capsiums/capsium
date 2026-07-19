@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "openssl"
 require "stringio"
 
 RSpec.describe Capsium::Cli::Package do
@@ -55,6 +56,70 @@ RSpec.describe Capsium::Cli::Package do
     it "exits nonzero for a missing .cap file" do
       status = capture_exit_status do
         described_class.start(["unpack", "/nonexistent.cap", "-o", Dir.mktmpdir])
+      end
+      expect(status).to eq(1)
+    end
+  end
+
+  describe "sign and verify-signature" do
+    let(:key_dir) { Dir.mktmpdir }
+    let(:key_path) { File.join(key_dir, "private.pem") }
+
+    before do
+      File.write(key_path, OpenSSL::PKey::RSA.generate(2048).to_pem)
+    end
+
+    after do
+      FileUtils.rm_rf(key_dir)
+    end
+
+    it "signs a package directory and verifies the signature" do
+      Dir.mktmpdir do |dir|
+        copy = File.join(dir, "bare-package")
+        FileUtils.cp_r(File.join(fixtures_path, "bare-package"), copy)
+
+        output = capture_stdout { described_class.start(["sign", copy, "--key", key_path]) }
+        expect(output).to include("Package signed:")
+        expect(File).to exist(File.join(copy, "signature.sig"))
+
+        output = capture_stdout { described_class.start(["verify-signature", copy]) }
+        expect(output).to include("Signature valid:")
+      end
+    end
+
+    it "signs and verifies a .cap file" do
+      Dir.mktmpdir do |dir|
+        cap = File.join(dir, "bare-package-0.1.0.cap")
+        FileUtils.cp(File.join(fixtures_path, "bare-package-0.1.0.cap"), cap)
+
+        capture_stdout { described_class.start(["sign", cap, "--key", key_path]) }
+        output = capture_stdout { described_class.start(["verify-signature", cap]) }
+        expect(output).to include("Signature valid:")
+      end
+    end
+
+    it "exits nonzero when the package was tampered with after signing" do
+      Dir.mktmpdir do |dir|
+        copy = File.join(dir, "bare-package")
+        FileUtils.cp_r(File.join(fixtures_path, "bare-package"), copy)
+        capture_stdout { described_class.start(["sign", copy, "--key", key_path]) }
+        File.write(File.join(copy, "content", "index.html"), "tampered")
+
+        status = capture_exit_status { described_class.start(["verify-signature", copy]) }
+        expect(status).to eq(1)
+      end
+    end
+
+    it "exits nonzero for an unsigned package" do
+      status = capture_exit_status do
+        described_class.start(["verify-signature", File.join(fixtures_path, "bare-package")])
+      end
+      expect(status).to eq(1)
+    end
+
+    it "exits nonzero when --key is missing" do
+      status = capture_exit_status do
+        described_class.start(["sign", File.join(fixtures_path, "bare-package")])
       end
       expect(status).to eq(1)
     end

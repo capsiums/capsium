@@ -22,6 +22,7 @@ module Capsium
     autoload :Security, "capsium/package/security"
     autoload :SecurityConfig, "capsium/package/security_config"
     autoload :SecurityData, "capsium/package/security_config"
+    autoload :Signer, "capsium/package/signer"
     autoload :Storage, "capsium/package/storage"
     autoload :StorageConfig, "capsium/package/storage_config"
     autoload :StorageData, "capsium/package/storage_config"
@@ -35,6 +36,7 @@ module Capsium
     STORAGE_FILE = "storage.json"
     ROUTES_FILE = "routes.json"
     SECURITY_FILE = "security.json"
+    SIGNATURE_FILE = "signature.sig"
     CONTENT_DIR = "content"
     DATA_DIR = "data"
 
@@ -46,6 +48,7 @@ module Capsium
       load_package
       @name = metadata.name
       verify_integrity!
+      verify_signature!
     end
 
     def prepare_package(path)
@@ -125,6 +128,20 @@ module Capsium
 
     def verify_integrity!
       @security.verify!(@path) if @security.present?
+    end
+
+    # Whether security.json declares a digital signature for this package.
+    def signed? = @security.signed?
+
+    # Verifies the declared digital signature (RSA-SHA256) against the
+    # checksum-covered payload. True when the package is unsigned (nothing
+    # declared) or the signature verifies; false on mismatch.
+    def verify_signature
+      !signed? || Signer.new(@path).verify
+    end
+
+    def verify_signature!
+      Signer.new(@path).verify! if signed?
     end
 
     private

@@ -2,7 +2,7 @@ module Capsium
   class Package
     # Loads, generates and verifies security.json (ARCHITECTURE.md
     # section 6). Checksums cover every file in the package except
-    # security.json itself.
+    # security.json itself and signature.sig.
     class Security
       class IntegrityError < Capsium::Error
       end
@@ -42,13 +42,20 @@ module Capsium
 
       def initialize: (String path, ?SecurityConfig? config) -> void
 
-      def self.generate: (String package_path) -> Security
+      def self.generate: (String package_path, ?digital_signatures: DigitalSignatures? digital_signatures) -> Security
 
       def self.checksums_for: (String package_path) -> Hash[String, String]
 
       def self.package_files: (String package_path) -> Array[String]
 
+      def self.excluded?: (String relative_path) -> bool
+
       def present?: () -> bool
+
+      # The declared digitalSignatures block, or nil when absent.
+      def digital_signatures: () -> DigitalSignatures?
+
+      def signed?: () -> bool
 
       def checksums: () -> Hash[String, String]
 

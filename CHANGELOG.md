@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.3.0
+
+### Added
+
+- Digital signatures (RSA-SHA256, X.509) per the packaging and security
+  standard clauses: `Capsium::Package::Signer` signs a package directory in
+  place (`signature.sig` plus the embedded public key PEM, recorded as
+  `security.digitalSignatures {publicKey, signatureFile}` in
+  `security.json`) and verifies declared signatures. The signed payload is
+  the concatenation, in sorted package-relative path order, of the raw
+  bytes of every checksum-covered file (everything except `security.json`
+  and `signature.sig`) — verifiable independently with
+  `openssl dgst -sha256 -verify`.
+- Signed packages are verified automatically on load:
+  `Capsium::Package#verify_signature`/`#verify_signature!`/`#signed?`;
+  a mismatch raises `Capsium::Package::Signer::SignatureMismatchError`,
+  so the reactor refuses to serve tampered signed packages.
+- `capsium package sign PATH --key KEY.pem [--cert CERT.pem]` and
+  `capsium package verify-signature PATH [--cert CERT.pem]` (exit status 1
+  on unsigned packages and verification failures). Both accept a package
+  directory or a `.cap` file.
+
+### Changed
+
+- Integrity checksums now exclude `signature.sig` in addition to
+  `security.json` (the signature signs the checksum-covered payload, so it
+  cannot be part of it).
+- `capsium package pack` drops signing artifacts (`signature.sig`,
+  embedded public key) when repacking: signing is a post-pack step.
+
 ## 0.2.0
 
 ### Changed
