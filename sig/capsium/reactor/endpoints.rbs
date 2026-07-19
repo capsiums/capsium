@@ -1,0 +1,16 @@
+module Capsium
+  class Reactor
+    # Serving of the reactor-level endpoints (introspection reports,
+    # per-package save), mixed into Reactor.
+    module Endpoints
+      include Responses
+
+      private
+
+      def serve_introspection: (untyped request, untyped response) -> untyped
+
+      # POST /package/<name>/save: folds base plus overlay into a new .cap.
+      def serve_package_save: (untyped request, untyped response) -> untyped
+    end
+  end
+end

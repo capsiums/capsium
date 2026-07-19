@@ -1,0 +1,12 @@
+module Capsium
+  class Reactor
+    # Folds a mounted package's base plus its overlay into a NEW
+    # versioned .cap (name-version+patch.cap) in the reactor workdir.
+    class PackageSaver
+      def initialize: (Mount mount) -> void
+
+      # Saves and returns the {"path", "sha256", "name", "version"} hash.
+      def save: (String workdir) -> Hash[String, String]
+    end
+  end
+end

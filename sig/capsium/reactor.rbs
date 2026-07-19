@@ -4,10 +4,12 @@ module Capsium
   # package on filesystem changes.
   class Reactor
     include Responses
+    include Endpoints
     include Serving
 
     DEFAULT_PORT: Integer
     DEFAULT_CACHE_CONTROL: String
+    PACKAGE_SAVE_PATTERN: Regexp
 
     attr_reader package: Package
     attr_reader package_path: String

@@ -8,6 +8,9 @@ module Capsium
 
       private
 
+      # One request metric and one log line per served request.
+      def record_request: (untyped request, untyped response) -> untyped
+
       # The mount answering a request path: longest matching prefix wins.
       def resolve_mount: (String path) -> Mount?
 

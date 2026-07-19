@@ -26,6 +26,7 @@ module Capsium
     autoload :ContentApi, "capsium/reactor/content_api"
     autoload :DataApi, "capsium/reactor/data_api"
     autoload :Deploy, "capsium/reactor/deploy"
+    autoload :Endpoints, "capsium/reactor/endpoints"
     autoload :GraphqlApi, "capsium/reactor/graphql_api"
     autoload :GraphqlSchema, "capsium/reactor/graphql_schema"
     autoload :Htpasswd, "capsium/reactor/htpasswd"
@@ -35,15 +36,18 @@ module Capsium
     autoload :MountConflictError, "capsium/reactor/mount"
     autoload :OAuth2, "capsium/reactor/oauth2"
     autoload :Overlay, "capsium/reactor/overlay"
+    autoload :PackageSaver, "capsium/reactor/package_saver"
     autoload :Responses, "capsium/reactor/responses"
     autoload :Serving, "capsium/reactor/serving"
     autoload :Session, "capsium/reactor/session"
 
     include Responses
+    include Endpoints
     include Serving
 
     DEFAULT_PORT = 8864
     DEFAULT_CACHE_CONTROL = "public, max-age=31536000"
+    PACKAGE_SAVE_PATTERN = %r{\A/package/(?<name>[^/]+)/save\z}
 
     attr_reader :package, :package_path, :routes, :port, :cache_control,
                 :server, :server_thread, :introspection, :authenticator,
@@ -186,29 +190,12 @@ module Capsium
       identity = @authenticator.authenticate(request)
       return @authenticator.challenge(response) if @authenticator.enabled? && identity.nil?
       return serve_introspection(request, response) if @introspection.endpoint?(request.path)
+      return serve_package_save(request, response) if PACKAGE_SAVE_PATTERN.match?(request.path)
 
       mount = resolve_mount(request.path)
       return respond_not_found(response) unless mount
 
       serve_mounted_request(mount, identity, request, response)
-    end
-
-    # One request metric and one log line per served request.
-    def record_request(request, response)
-      status = response.status
-      return if status.nil?
-
-      @metrics.record(status)
-      @log_buffer.add("#{request.request_method} #{request.path} -> #{status}")
-    end
-
-    def serve_introspection(request, response)
-      return respond_method_not_allowed(response) unless request.request_method == "GET"
-
-      report = @introspection.report_for(request.path, params: request.query)
-      return respond_not_found(response) if report.nil?
-
-      respond_json(response, 200, report)
     end
   end
 end
