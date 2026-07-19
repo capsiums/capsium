@@ -1,0 +1,35 @@
+module Capsium
+  class Package
+    # The "encryption" object of signature.json in an encrypted package:
+    # the AES-256-GCM envelope with the RSA-OAEP-SHA256 wrapped DEK, all
+    # binary values Base64-encoded.
+    class EncryptionEnvelope
+      attr_accessor algorithm: String?
+      attr_accessor key_management: String?
+      attr_accessor encrypted_dek: String?
+      attr_accessor iv: String?
+      attr_accessor auth_tag: String?
+
+      def initialize: (?algorithm: String? algorithm,
+                       ?key_management: String? key_management,
+                       ?encrypted_dek: String? encrypted_dek,
+                       ?iv: String? iv,
+                       ?auth_tag: String? auth_tag) -> void
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+
+    # The signature.json file of an encrypted package.
+    class EncryptionConfig
+      attr_accessor encryption: EncryptionEnvelope?
+
+      def initialize: (?encryption: EncryptionEnvelope? encryption) -> void
+
+      def self.from_json: (String json) -> instance
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+  end
+end

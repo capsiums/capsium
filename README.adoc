@@ -213,6 +213,52 @@ Packages that declare a signature are also verified automatically on load —
 a mismatch raises `Capsium::Package::Signer::SignatureMismatchError`, so a
 tampered signed package cannot be served by the reactor.
 
+=== Encrypting a package
+
+[source,bash]
+----
+capsium package encrypt path-to-package-or-cap --public-key public.pem -o encrypted.cap
+----
+
+Encrypts the whole package for the recipient's RSA public key (or X.509
+certificate), per the packaging standard's encryption clause: the
+encrypted `.cap` is a zip containing `metadata.json` (cleartext, so
+name/version stay readable), `signature.json` (the encryption envelope)
+and `package.enc` — the AES-256-GCM ciphertext of the inner plaintext
+`.cap` zip (content, configuration files, data). A random 256-bit data
+encryption key (DEK) encrypts the inner zip and is wrapped with the
+recipient's public key using RSA-OAEP with SHA-256:
+
+[source,json]
+----
+{
+  "encryption": {
+    "algorithm": "AES-256-GCM",
+    "keyManagement": "RSA-OAEP-SHA256",
+    "encryptedDek": "<base64>",
+    "iv": "<base64>",
+    "authTag": "<base64>"
+  }
+}
+----
+
+The OCB/OpenPGP alternatives mentioned by the standard are intentionally
+not implemented.
+
+=== Decrypting a package
+
+[source,bash]
+----
+capsium package decrypt encrypted.cap --private-key private.pem [-o decrypted.cap]
+----
+
+Decrypts an encrypted package with the recipient's RSA private key and
+writes the plaintext `.cap` (default output: `<name>-decrypted.cap`).
+Decryption fails with a typed error when the key does not match or the
+ciphertext was tampered with (GCM authentication). Loading an encrypted
+package without a key raises `Capsium::Package::Cipher::KeyRequiredError`
+— the reactor refuses to serve it.
+
 == CLI: Reactor
 
 === Starting a reactor on your package
@@ -262,6 +308,11 @@ require 'capsium'
 
 # Read a package directory or a .cap file
 package = Capsium::Package.new(path)
+
+# Read an encrypted .cap (raises Capsium::Package::Cipher::KeyRequiredError
+# without a key, Capsium::Package::Cipher::DecryptionError for a wrong key
+# or tampered ciphertext)
+package = Capsium::Package.new('encrypted.cap', decryption_key: 'private.pem')
 ----
 
 When `security.json` is present, the package is verified on load and
@@ -300,6 +351,12 @@ signer.sign('private.pem')                    # or sign('private.pem', 'cert.pem
 signer.verify                                 # embedded public key
 signer.verify('cert-or-public-key.pem')       # explicit key
 signer.verify!                                # raises SignatureMismatchError
+
+# Whole-package encryption (AES-256-GCM, RSA-OAEP-SHA256 wrapped DEK)
+cipher = Capsium::Package::Cipher.new
+cipher.encrypt('pkg-1.0.0.cap', 'public.pem', 'encrypted.cap')
+cipher.decrypt('encrypted.cap', 'private.pem', 'decrypted.cap')
+Capsium::Package::Cipher.encrypted?('encrypted.cap')  # => true
 ----
 
 === Packing and unpacking programmatically

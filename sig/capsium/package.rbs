@@ -20,13 +20,18 @@ module Capsium
     attr_reader security: Security
     attr_reader load_type: Symbol
 
-    def initialize: (String | Pathname path, ?load_type: Symbol? load_type) -> void
+    def initialize: (String | Pathname path, ?load_type: Symbol? load_type, ?decryption_key: String? decryption_key) -> void
 
     def prepare_package: (Pathname path) -> (String | Pathname)
 
     def solidify: () -> void
 
     def decompress_cap_file: (String | Pathname file_path) -> String
+
+    # Decrypts an encrypted package (.cap file or uncompressed directory)
+    # into a temporary directory and returns its path. Raises
+    # Cipher::KeyRequiredError when no decryption_key was given.
+    def decrypt_cap_file: (String | Pathname source_path) -> String
 
     def load_package: () -> void
 

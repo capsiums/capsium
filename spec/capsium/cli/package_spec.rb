@@ -125,6 +125,93 @@ RSpec.describe Capsium::Cli::Package do
     end
   end
 
+  describe "encrypt and decrypt" do
+    let(:key_dir) { Dir.mktmpdir }
+    let(:key) { OpenSSL::PKey::RSA.generate(2048) }
+    let(:public_key_path) { File.join(key_dir, "public.pem") }
+    let(:private_key_path) { File.join(key_dir, "private.pem") }
+
+    before do
+      File.write(public_key_path, key.public_key.to_pem)
+      File.write(private_key_path, key.to_pem)
+    end
+
+    after do
+      FileUtils.rm_rf(key_dir)
+    end
+
+    it "encrypts and decrypts a .cap round-trip" do
+      Dir.mktmpdir do |dir|
+        cap = File.join(dir, "bare-package-0.1.0.cap")
+        FileUtils.cp(File.join(fixtures_path, "bare-package-0.1.0.cap"), cap)
+        encrypted = File.join(dir, "encrypted.cap")
+        decrypted = File.join(dir, "decrypted.cap")
+
+        output = capture_stdout do
+          described_class.start(
+            ["encrypt", cap, "--public-key", public_key_path, "-o", encrypted]
+          )
+        end
+        expect(output).to include("Package encrypted:")
+
+        output = capture_stdout do
+          described_class.start(
+            ["decrypt", encrypted, "--private-key", private_key_path, "-o", decrypted]
+          )
+        end
+        expect(output).to include("Package decrypted:")
+        expect(Capsium::Package.new(decrypted).name).to eq("bare-package")
+      end
+    end
+
+    it "uses a default output name for decrypt" do
+      Dir.mktmpdir do |dir|
+        cap = File.join(dir, "bare-package-0.1.0.cap")
+        FileUtils.cp(File.join(fixtures_path, "bare-package-0.1.0.cap"), cap)
+        encrypted = File.join(dir, "encrypted.cap")
+        capture_stdout do
+          described_class.start(
+            ["encrypt", cap, "--public-key", public_key_path, "-o", encrypted]
+          )
+        end
+
+        Dir.chdir(dir) do
+          capture_stdout do
+            described_class.start(["decrypt", encrypted, "--private-key", private_key_path])
+          end
+          expect(File).to exist(File.join(dir, "encrypted-decrypted.cap"))
+        end
+      end
+    end
+
+    it "exits nonzero when decrypting with the wrong key" do
+      Dir.mktmpdir do |dir|
+        cap = File.join(dir, "bare-package-0.1.0.cap")
+        FileUtils.cp(File.join(fixtures_path, "bare-package-0.1.0.cap"), cap)
+        encrypted = File.join(dir, "encrypted.cap")
+        capture_stdout do
+          described_class.start(
+            ["encrypt", cap, "--public-key", public_key_path, "-o", encrypted]
+          )
+        end
+        wrong_key_path = File.join(dir, "wrong.pem")
+        File.write(wrong_key_path, OpenSSL::PKey::RSA.generate(2048).to_pem)
+
+        status = capture_exit_status do
+          described_class.start(["decrypt", encrypted, "--private-key", wrong_key_path])
+        end
+        expect(status).to eq(1)
+      end
+    end
+
+    it "exits nonzero when --public-key is missing" do
+      status = capture_exit_status do
+        described_class.start(["encrypt", "x.cap", "-o", "y.cap"])
+      end
+      expect(status).to eq(1)
+    end
+  end
+
   def capture_stdout
     original = $stdout
     $stdout = StringIO.new

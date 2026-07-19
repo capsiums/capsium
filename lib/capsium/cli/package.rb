@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require "fileutils"
 require "json"
-require "tmpdir"
 
 module Capsium
   class Cli
@@ -83,11 +81,7 @@ module Capsium
                     desc: "Path to the X.509 certificate PEM (must match the key)"
 
       def sign(path_to_package)
-        if File.extname(path_to_package) == ".cap"
-          sign_cap_file(path_to_package)
-        else
-          Capsium::Package::Signer.new(path_to_package).sign(options[:key], options[:cert])
-        end
+        Capsium::Package::Signer.sign_package(path_to_package, options[:key], options[:cert])
         puts "Package signed: #{path_to_package}"
       end
 
@@ -98,45 +92,43 @@ module Capsium
                           "(defaults to the key embedded in the package)"
 
       def verify_signature(path_to_package)
-        with_package_directory(path_to_package) do |directory|
-          signer = Capsium::Package::Signer.new(directory)
-          raise Thor::Error, "Package is not signed" unless signer.signed?
-          unless signer.verify(options[:cert])
-            raise Thor::Error, "Signature verification failed: #{path_to_package}"
-          end
-
-          puts "Signature valid: #{path_to_package}"
+        unless Capsium::Package::Signer.verify_package(path_to_package, options[:cert])
+          raise Thor::Error, "Signature verification failed: #{path_to_package}"
         end
+
+        puts "Signature valid: #{path_to_package}"
+      rescue Capsium::Package::Signer::SignatureError => e
+        raise Thor::Error, e.message
+      end
+
+      desc "encrypt PACKAGE_PATH --public-key PUB.pem -o OUT.cap",
+           "Encrypt a package (AES-256-GCM, RSA-OAEP-SHA256 wrapped DEK)"
+      option :public_key, type: :string, required: true,
+                          desc: "Path to the recipient RSA public key or X.509 certificate PEM"
+      option :output, type: :string, required: true, aliases: "-o",
+                      desc: "Output path for the encrypted .cap"
+
+      def encrypt(path_to_package)
+        Capsium::Package::Cipher.new.encrypt(
+          path_to_package, options[:public_key], options[:output]
+        )
+        puts "Package encrypted: #{options[:output]}"
+      end
+
+      desc "decrypt PACKAGE_PATH --private-key PRIV.pem [-o OUT.cap]",
+           "Decrypt an encrypted package"
+      option :private_key, type: :string, required: true,
+                           desc: "Path to the recipient RSA private key PEM"
+      option :output, type: :string, aliases: "-o",
+                      desc: "Output path (default: <name>-decrypted.cap)"
+
+      def decrypt(path_to_package)
+        output = options[:output] || "#{File.basename(path_to_package, '.cap')}-decrypted.cap"
+        Capsium::Package::Cipher.new.decrypt(path_to_package, options[:private_key], output)
+        puts "Package decrypted: #{output}"
       end
 
       private
-
-      def sign_cap_file(cap_path)
-        Dir.mktmpdir do |dir|
-          Capsium::Packager.new.unpack(cap_path, dir)
-          Capsium::Package::Signer.new(dir).sign(options[:key], options[:cert])
-          repack(dir, cap_path)
-        end
-      end
-
-      def repack(directory, cap_path)
-        Dir.mktmpdir do |tmp|
-          tmp_cap = File.join(tmp, File.basename(cap_path))
-          # Loading verifies the freshly signed package before recompressing.
-          package = Capsium::Package.new(directory)
-          Capsium::Packager.new.compress_package(package, tmp_cap)
-          FileUtils.mv(tmp_cap, cap_path)
-        end
-      end
-
-      def with_package_directory(path_to_package)
-        return yield path_to_package unless File.extname(path_to_package) == ".cap"
-
-        Dir.mktmpdir do |dir|
-          Capsium::Packager.new.unpack(path_to_package, dir)
-          yield dir
-        end
-      end
 
       def format_result(result)
         line = "#{result.ok? ? 'PASS' : 'FAIL'} #{result.name}"

@@ -68,6 +68,31 @@ module Capsium
       end
     end
 
+    # Unpacks a .cap into a temporary directory, yields it for read-only
+    # inspection and returns the block's value.
+    def with_unpacked_cap(cap_path)
+      Dir.mktmpdir do |dir|
+        unpack(cap_path, dir)
+        yield dir
+      end
+    end
+
+    # Unpacks a .cap into a temporary directory, yields it for
+    # modification, then recompresses the result back over cap_path.
+    # The modified package is loaded (verifying integrity and any
+    # declared signature) before recompressing.
+    def transform_cap(cap_path)
+      with_unpacked_cap(cap_path) do |dir|
+        yield dir
+        Dir.mktmpdir do |tmp|
+          tmp_cap = File.join(tmp, File.basename(cap_path))
+          compress_package(Package.new(dir), tmp_cap)
+          FileUtils.mv(tmp_cap, cap_path)
+        end
+      end
+      cap_path
+    end
+
     def relative_path_current(absolute_path)
       Pathname.new(absolute_path).relative_path_from(Dir.pwd).to_s
     end
