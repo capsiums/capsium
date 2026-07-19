@@ -40,7 +40,7 @@ module Capsium
 
     def initialize(path, load_type: nil)
       @original_path = Pathname.new(path).expand_path
-      @path = prepare_package(@original_path)
+      @path = prepare_package(@original_path).to_s
       @load_type = load_type || determine_load_type(path)
       create_package_structure
       load_package
@@ -86,13 +86,19 @@ module Capsium
     end
 
     def cleanup
-      return unless @path != @original_path && File.directory?(@path)
+      return unless @path != @original_path.to_s && File.directory?(@path)
 
       FileUtils.remove_entry(@path)
     end
 
     def datasets
       storage.datasets
+    end
+
+    # The .cap file this package was loaded from, or nil when loaded
+    # from a directory.
+    def cap_file_path
+      @original_path.to_s if load_type == :cap_file
     end
 
     def content_files

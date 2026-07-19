@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "digest"
 require "json"
+require "time"
 require "yaml"
 
 RSpec.describe Capsium::Reactor do
@@ -215,6 +217,151 @@ RSpec.describe Capsium::Reactor do
       it "returns the dataset serialized as JSON" do
         app.handle_request(request, response)
         expect(response).to have_received(:body=).with(expected_body)
+      end
+    end
+  end
+
+  describe "introspection endpoints (ARCHITECTURE.md section 7)" do
+    let(:package_name) { "data-package" }
+    let(:package_path) { File.join(fixtures_path, package_name) }
+    let(:package) { Capsium::Package.new(package_path) }
+    let(:app) { described_class.new(package: package, do_not_listen: true) }
+
+    # Calls the handler directly (rack-free) and captures the response.
+    def introspect(app, path, method: "GET")
+      request = instance_double(WEBrick::HTTPRequest, path: path,
+                                                      request_method: method)
+      response = instance_double(WEBrick::HTTPResponse)
+      result = { headers: {} }
+      allow(response).to receive(:status=) { |value| result[:status] = value }
+      allow(response).to receive(:[]=) do |name, value|
+        result[:headers][name] = value
+      end
+      allow(response).to receive(:body=) { |value| result[:body] = value }
+      app.handle_request(request, response)
+      result
+    end
+
+    it "mounts the introspection endpoints on the server" do
+      app
+      Capsium::Reactor::Introspection::PATHS.each do |path|
+        expect(mock_server).to have_received(:mount_proc).with(path)
+      end
+    end
+
+    describe "GET /api/v1/introspect/metadata" do
+      it "returns the package metadata as JSON" do
+        result = introspect(app, "/api/v1/introspect/metadata")
+
+        expect(result[:status]).to eq(200)
+        expect(result[:headers]["Content-Type"]).to eq("application/json")
+        expect(JSON.parse(result[:body])).to eq(
+          "packages" => [{
+            "name" => "data-package",
+            "version" => "0.1.0",
+            "author" => "Ribose Inc.",
+            "description" => "A package with data"
+          }]
+        )
+      end
+    end
+
+    describe "GET /api/v1/introspect/routes" do
+      it "returns the package routes as JSON" do
+        result = introspect(app, "/api/v1/introspect/routes")
+
+        expect(result[:status]).to eq(200)
+        expect(result[:headers]["Content-Type"]).to eq("application/json")
+        parsed = JSON.parse(result[:body])
+        expect(parsed["routes"].size).to eq(1)
+        expect(parsed["routes"].first["package"]).to eq("data-package")
+        expect(parsed["routes"].first["routes"]).to include(
+          { "method" => "GET", "path" => "/" },
+          { "method" => "GET", "path" => "/api/v1/data/animals" }
+        )
+      end
+    end
+
+    describe "GET /api/v1/introspect/content-hashes" do
+      it "hashes the canonical content checksums for a directory source" do
+        result = introspect(app, "/api/v1/introspect/content-hashes")
+
+        expected = Digest::SHA256.hexdigest(
+          JSON.generate(Capsium::Package::Security.checksums_for(package.path))
+        )
+        expect(result[:status]).to eq(200)
+        expect(JSON.parse(result[:body])).to eq(
+          "contentHashes" => [{ "package" => "data-package",
+                                "hash" => expected }]
+        )
+      end
+
+      it "hashes the .cap blob for a .cap source" do
+        cap_path = File.join(fixtures_path, "data-package-0.1.0.cap")
+        cap_package = Capsium::Package.new(cap_path)
+        cap_app = described_class.new(package: cap_package,
+                                      do_not_listen: true)
+        result = introspect(cap_app, "/api/v1/introspect/content-hashes")
+
+        expect(JSON.parse(result[:body])).to eq(
+          "contentHashes" => [{
+            "package" => "data-package",
+            "hash" => Digest::SHA256.file(cap_path).hexdigest
+          }]
+        )
+      ensure
+        cap_package.cleanup
+      end
+    end
+
+    describe "GET /api/v1/introspect/content-validity" do
+      it "reports an intact package as valid" do
+        result = introspect(app, "/api/v1/introspect/content-validity")
+
+        expect(result[:status]).to eq(200)
+        entry = JSON.parse(result[:body]).fetch("contentValidity").first
+        expect(entry["package"]).to eq("data-package")
+        expect(entry["valid"]).to be(true)
+        expect(entry).not_to have_key("reason")
+        expect { Time.iso8601(entry["lastChecked"]) }.not_to raise_error
+      end
+
+      it "reports tampered content as invalid with a reason" do
+        Dir.mktmpdir do |dir|
+          tampered = File.join(dir, "data-package")
+          FileUtils.cp_r(package_path, tampered)
+          tampered_package = Capsium::Package.new(tampered)
+          File.write(File.join(tampered, "content", "index.html"),
+                     "<html>tampered</html>")
+          tampered_app = described_class.new(package: tampered_package,
+                                             do_not_listen: true)
+
+          result = introspect(tampered_app,
+                              "/api/v1/introspect/content-validity")
+
+          entry = JSON.parse(result[:body]).fetch("contentValidity").first
+          expect(entry["valid"]).to be(false)
+          expect(entry["reason"]).to include("index.html")
+        end
+      end
+    end
+
+    context "with an unsupported method" do
+      it "returns 405 Method Not Allowed" do
+        result = introspect(app, "/api/v1/introspect/metadata", method: "POST")
+
+        expect(result[:status]).to eq(405)
+        expect(result[:headers]["Content-Type"]).to eq("text/plain")
+        expect(result[:body]).to eq("Method Not Allowed")
+      end
+    end
+
+    context "with an unknown introspection path" do
+      it "returns 404 Not Found" do
+        result = introspect(app, "/api/v1/introspect/unknown")
+
+        expect(result[:status]).to eq(404)
+        expect(result[:headers]["Content-Type"]).to eq("text/plain")
       end
     end
   end
