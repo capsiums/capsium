@@ -35,6 +35,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "bcrypt"
   spec.add_dependency "csv"
+  spec.add_dependency "graphql"
   spec.add_dependency "json"
   spec.add_dependency "json-schema"
   spec.add_dependency "listen"

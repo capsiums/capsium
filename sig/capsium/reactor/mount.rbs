@@ -1,0 +1,64 @@
+module Capsium
+  class Reactor
+    # Raised when two mounts claim the same URL prefix, whether given
+    # explicitly or derived from package names.
+    class MountConflictError < Capsium::Error
+    end
+
+    # One mounted package: the URL prefix it answers under plus its
+    # serving state. The reactor serves a list of mounts resolved by
+    # longest-prefix matching; default mount points are "/" for the
+    # first source and "/<metadata.name>/" for each additional one.
+    class Mount
+      ROOT_PATH: String
+      SPEC_SEPARATOR: String
+
+      # A mount entry as accepted from the CLI or a JSON config file:
+      # "path" may be nil (the default is assigned on build), "source"
+      # is a package directory, .cap file or Package, "store"
+      # optionally overrides the global package store for this mount.
+      class Entry
+        def self.new: (path: String? path, source: (Package | String) source, store: (Package::Store | String)? store) -> void
+
+        def path: () -> String?
+
+        def source: () -> (Package | String)
+
+        def store: () -> (Package::Store | String)?
+
+        def with: (?path: String? path, ?source: (Package | String) source, ?store: (Package::Store | String)? store) -> Entry
+      end
+
+      attr_reader path: String
+      attr_reader package: Package
+
+      def self.parse_spec: (String spec) -> Entry
+
+      def self.config_entries: (String config_file) -> Array[Entry]
+
+      def self.build: (Array[Entry] entries, ?store: (Package::Store | String)? store, ?registry: (Capsium::Registry | String)? registry) -> Array[Mount]
+
+      def self.load_package: ((Package | String) source, (Package::Store | String)? store, (Capsium::Registry | String)? registry) -> Package
+
+      def self.normalize_path: (String? path) -> String
+
+      def initialize: (path: String? path, package: (Package | String) package, ?store: (Package::Store | String)? store, ?registry: (Capsium::Registry | String)? registry) -> void
+
+      def matches?: (String request_path) -> bool
+
+      def inner_path: (String request_path) -> String
+
+      def routes: () -> Package::Routes
+
+      def merged_view: () -> Package::MergedView
+
+      # The one-line "name version" summary used in reactor logs.
+      def summary: () -> String
+
+      # The WEBrick mount points serving this mount.
+      def server_paths: () -> Array[String]
+
+      def reload: () -> Package
+    end
+  end
+end
