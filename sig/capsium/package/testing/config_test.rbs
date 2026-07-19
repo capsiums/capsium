@@ -1,0 +1,21 @@
+module Capsium
+  class Package
+    module Testing
+      # A "config" test (05x-testing): the configuration file must exist
+      # in the package and parse as the declared format; known Capsium
+      # package configs are additionally validated against their
+      # canonical models.
+      class ConfigTest < TestCase
+        FORMATS: Array[String]
+
+        attr_reader format: String
+        attr_reader config_file: String
+
+        def initialize: (name: String name, format: String format,
+                         config_file: String config_file) -> void
+
+        def run: (Context context) -> TestCase::Result
+      end
+    end
+  end
+end

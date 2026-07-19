@@ -1,0 +1,37 @@
+tests:
+  - name: Home route responds
+    type: route
+    url: "/"
+    expected_status: 200
+    response_contains: "Welcome"
+
+  - name: Index route responds with HTML
+    type: route
+    url: "http://localhost:8000/index.html"
+    expected_status: 200
+    expected_content_type: text/html
+
+  - name: Missing route is a 404
+    type: route
+    url: "/nonexistent"
+    expected_status: 404
+
+  - name: Content file exists
+    type: file
+    path: "content/index.html"
+    contains: "Welcome"
+
+  - name: Metadata exists
+    type: file
+    path: "/metadata.json"
+
+  - name: Animals data validates against its schema
+    type: data_validation
+    format: json
+    data_file: "data/animals.json"
+    schema_file: "data/animals.schema.json"
+
+  - name: Metadata config is well-formed
+    type: config
+    format: json
+    config_file: "metadata.json"

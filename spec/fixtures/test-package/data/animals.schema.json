@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "required": ["name", "legs"],
+  "properties": {
+    "name": { "type": "string" },
+    "legs": { "type": "integer" }
+  },
+  "additionalProperties": false
+}

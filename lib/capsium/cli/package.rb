@@ -128,6 +128,19 @@ module Capsium
         puts "Package decrypted: #{output}"
       end
 
+      desc "test PACKAGE_PATH", "Run the package's tests/*.yaml suite (05x-testing DSL)"
+
+      def test(path_to_package)
+        package = Capsium::Package.new(path_to_package)
+        report = Capsium::Package::Testing::TestSuite.new(package).run
+        report.results.each { |result| puts format_result(result) }
+        if report.results.empty?
+          puts "No tests found (#{Capsium::Package::Testing::TestSuite::TESTS_DIR}/*.yaml)"
+        end
+        puts report.summary
+        raise Thor::Error, "Package tests failed" unless report.ok?
+      end
+
       private
 
       def format_result(result)

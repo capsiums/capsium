@@ -1,0 +1,14 @@
+module Capsium
+  class Package
+    module Testing
+      # What a test run needs: the extracted package directory and, when
+      # route tests run, the base URL of the reactor serving the package.
+      class Context
+        attr_reader package_path: String
+        attr_reader base_url: String?
+
+        def initialize: (package_path: String package_path, base_url: String? base_url) -> void
+      end
+    end
+  end
+end

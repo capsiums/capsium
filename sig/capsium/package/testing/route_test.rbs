@@ -1,0 +1,22 @@
+module Capsium
+  class Package
+    module Testing
+      # A "route" test (05x-testing): requests the URL path from the
+      # reactor serving the package and checks the expected status, and
+      # optionally the content type and a response body substring.
+      class RouteTest < TestCase
+        attr_reader url: String
+        attr_reader expected_status: Integer
+        attr_reader response_contains: String?
+        attr_reader expected_content_type: String?
+
+        def initialize: (name: String name, url: String url,
+                         expected_status: Integer expected_status,
+                         ?response_contains: String? response_contains,
+                         ?expected_content_type: String? expected_content_type) -> void
+
+        def run: (Context context) -> TestCase::Result
+      end
+    end
+  end
+end

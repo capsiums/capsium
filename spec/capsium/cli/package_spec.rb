@@ -212,6 +212,39 @@ RSpec.describe Capsium::Cli::Package do
     end
   end
 
+  describe "test" do
+    it "runs the fixture package suite and exits zero" do
+      output = capture_stdout do
+        described_class.start(["test", File.join(fixtures_path, "test-package")])
+      end
+      expect(output).to include("PASS Home route responds")
+      expect(output).to include("7 tests, 0 failures")
+    end
+
+    it "exits nonzero when tests fail" do
+      Dir.mktmpdir do |dir|
+        FileUtils.mkdir_p(File.join(dir, "tests"))
+        File.write(File.join(dir, "metadata.json"), '{"name": "x", "version": "0.1.0"}')
+        File.write(File.join(dir, "tests", "suite.yaml"), <<~YAML)
+          tests:
+            - name: Missing file
+              type: file
+              path: "content/missing.txt"
+        YAML
+
+        status = capture_exit_status { described_class.start(["test", dir]) }
+        expect(status).to eq(1)
+      end
+    end
+
+    it "exits nonzero for a nonexistent package" do
+      status = capture_exit_status do
+        described_class.start(["test", "/nonexistent/package"])
+      end
+      expect(status).to eq(1)
+    end
+  end
+
   def capture_stdout
     original = $stdout
     $stdout = StringIO.new

@@ -1,0 +1,22 @@
+module Capsium
+  class Package
+    module Testing
+      # A "data_validation" test (05x-testing): the rows of the data
+      # file (format: json or yaml) must validate against the JSON
+      # schema file.
+      class DataValidationTest < TestCase
+        FORMATS: Array[String]
+
+        attr_reader format: String
+        attr_reader data_file: String
+        attr_reader schema_file: String
+
+        def initialize: (name: String name, format: String format,
+                         data_file: String data_file,
+                         schema_file: String schema_file) -> void
+
+        def run: (Context context) -> TestCase::Result
+      end
+    end
+  end
+end

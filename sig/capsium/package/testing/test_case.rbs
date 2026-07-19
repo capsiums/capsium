@@ -1,0 +1,41 @@
+module Capsium
+  class Package
+    module Testing
+      # Base class for one test of the Capsium testing YAML DSL
+      # (05x-testing). Subclasses implement a test kind and register
+      # themselves under their DSL type name (open/closed registry).
+      class TestCase
+        # The outcome of running one test.
+        class Result
+          attr_reader name: String
+          attr_reader ok: bool
+          attr_reader messages: Array[String]
+
+          def initialize: (name: String name, ok: bool ok, messages: Array[String] messages) -> void
+
+          def ok?: () -> bool
+        end
+
+        # Raised for invalid test definitions.
+        class DefinitionError < Capsium::Error
+        end
+
+        attr_reader name: String
+
+        def initialize: (name: String name) -> void
+
+        # Runs the test against the context and returns a Result.
+        def run: (Context context) -> Result
+
+        def self.register: (String type, singleton(TestCase) klass) -> void
+
+        def self.types: () -> Hash[String, singleton(TestCase)]
+
+        # Builds a test case from a YAML definition hash (string keys).
+        def self.build: (untyped definition) -> TestCase
+
+        def self.from_h: (Hash[String, untyped] definition) -> TestCase
+      end
+    end
+  end
+end

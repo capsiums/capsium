@@ -1,0 +1,9 @@
+{
+  "name": "test-package",
+  "version": "0.1.0",
+  "description": "Package with a 05x-testing YAML suite",
+  "guid": "https://github.com/capsiums/capsium",
+  "uuid": "123e4567-e89b-12d3-a456-426614174000",
+  "author": "Ribose",
+  "license": "MIT"
+}

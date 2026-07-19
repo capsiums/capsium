@@ -1,0 +1,17 @@
+module Capsium
+  class Package
+    module Testing
+      # A "file" test (05x-testing): the file must exist in the package;
+      # optionally its content must contain a string.
+      class FileTest < TestCase
+        attr_reader path: String
+        attr_reader contains: String?
+
+        def initialize: (name: String name, path: String path,
+                         ?contains: String? contains) -> void
+
+        def run: (Context context) -> TestCase::Result
+      end
+    end
+  end
+end
