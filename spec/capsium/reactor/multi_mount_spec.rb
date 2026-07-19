@@ -11,6 +11,7 @@ RSpec.describe "Reactor with multiple mounted packages" do
   let(:fixtures_path) { File.expand_path(File.join(__dir__, "..", "..", "fixtures")) }
   let(:bare_source) { File.join(fixtures_path, "bare-package") }
   let(:data_source) { File.join(fixtures_path, "data-package") }
+  let(:readonly_source) { File.join(fixtures_path, "readonly-package") }
   let(:mock_server) { instance_double(WEBrick::HTTPServer) }
 
   before do
@@ -293,6 +294,31 @@ RSpec.describe "Reactor with multiple mounted packages" do
       args = ["pkg1", "pkg2", "--port", "9000"]
 
       expect(Capsium::Cli::Reactor.merge_mount_options(args)).to eq(args)
+    end
+
+    it "mounts positional and repeated --mount sources through the Thor dispatch" do
+      created = nil
+      allow(Capsium::Reactor).to receive(:new).and_wrap_original do |original, **kwargs|
+        created = original.call(**kwargs)
+        allow(created).to receive(:serve)
+        created
+      end
+
+      Dir.mktmpdir do |dir|
+        Capsium::Cli.start(["reactor", "serve", data_source,
+                            "--mount", "/ro=#{readonly_source}",
+                            "--mount", "/bare=#{bare_source}",
+                            "--workdir", dir, "--do_not_listen",
+                            "--port", "18997"])
+      end
+
+      mounts = created.mounts.map { |mount| [mount.path, mount.package.name] }
+      expect(mounts).to eq([["/ro", "readonly-package"],
+                            ["/bare", "bare-package"],
+                            ["/data-package", "data-package"]])
+      expect(created.mounts.map(&:writable?)).to eq([false, true, true])
+    ensure
+      created&.cleanup
     end
   end
 

@@ -330,7 +330,7 @@ with status 1 when any test fails (or a test definition is invalid).
 
 [source,bash]
 ----
-capsium reactor serve my_package.cap [--port 8864] [--store DIR] [--deploy deploy.json]
+capsium reactor serve my_package.cap [--port 8864] [--store DIR] [--deploy deploy.json] [--workdir DIR]
 capsium reactor serve capsium://example.com/story [--registry DIR_OR_URL] [--store DIR] [--constraint ">=1.0"]
 ----
 
@@ -341,7 +341,86 @@ resolves composite-package dependencies; `--deploy` (or
 `CAPSIUM_DEPLOY`) points at the reactor-side `deploy.json` with
 authentication secrets (see "Authentication" below); `--registry`
 (or `CAPSIUM_REGISTRY`) supplies the registry for `capsium://` GUIDs
-and for dependency fallback.
+and for dependency fallback; `--workdir` holds the writable overlays
+and saved packages (default: a temporary directory — see "Writable
+packages" below).
+
+=== Serving multiple packages
+
+`capsium reactor serve` accepts multiple sources at once: positional
+arguments, repeatable `--mount PATH=SOURCE` options, a JSON mount
+config via `--config`, or any combination:
+
+[source,bash]
+----
+capsium reactor serve first.cap second.cap
+capsium reactor serve --mount /=first.cap --mount /api=second.cap
+capsium reactor serve --config mounts.json   # {"mounts": [{"path": "/", "source": "first.cap", "store": "..."}]}
+----
+
+Default mount points: the first source mounts at `/`, each additional
+source at `/<metadata.name>/`. Requests dispatch to mounts by
+longest-prefix matching, and every package's routes answer below its
+prefix (a package mounted at `/api` serves its `/index.html` route at
+`/api/index.html`). Two mounts claiming the same prefix fail with a
+`MountConflictError`. The introspection endpoints aggregate ALL
+mounted packages, `/package/<name>/...` resolves by name (404 for
+unknown names), and metrics/logs stay reactor-global. On shutdown the
+reactor cleans up every mounted package.
+
+=== Writable packages
+
+A mounted package whose metadata does not declare `"readOnly": true`
+is writable: the reactor keeps an append-only overlay layer for it in
+the workdir (`--workdir DIR`, default a temporary directory) which is
+always the topmost layer of the merged view (ARCHITECTURE.md section
+5a). The immutable `.cap` never changes on disk, and every write is
+visible on the next request (hot-swap — no restart needed). Overlay
+state persists in the workdir, so a later reactor over the same
+workdir sees it again.
+
+Dataset CRUD (JSON) under the dataset's route:
+
+[source]
+----
+POST   /api/v1/data/<dataset>          # append an item => 201 + Location + stored item
+GET    /api/v1/data/<dataset>/<id>     # one item => 200 (404 when absent)
+PUT    /api/v1/data/<dataset>/<id>     # replace an item => 200 (404 absent, 422 schema fail)
+DELETE /api/v1/data/<dataset>/<id>     # delete an item => 204 (404 absent)
+GET    /api/v1/data/<dataset>          # the merged collection (as before)
+----
+
+Item ids follow the `id` field when present, else the 1-based index as
+a string; a duplicate `id` on POST (or a mismatched one on PUT) is a
+`409`. The request body must satisfy the dataset's JSON schema when
+one is declared (violations are `422` with the schema errors);
+malformed JSON is `400`. Writes on a `"readOnly": true` package are
+`403` with a clear body; writes on a SQLite dataset are `501`;
+wrong verbs are `405`. Mutations persist as a per-dataset JSON
+operation log in the overlay.
+
+Content writes work on any route path (text bodies for v1):
+
+[source]
+----
+PUT    /<route>                        # create/overwrite a content file (route created on demand) => 200
+DELETE /<route>                        # tombstone: the path 404s even if a lower layer has it => 204
+----
+
+Every mounted package with datasets also answers GraphQL at
+`<mount>/graphql` (POST, or GET with `?query=`): the schema is derived
+from the package's datasets — a query field `<dataset>` (list) with an
+optional `id:` argument (single item) plus `create<Dataset>`,
+`update<Dataset>` and `delete<Dataset>` mutations matching the REST
+semantics. Item types are inferred from the dataset's JSON schema when
+present, else map to a permissive JSON scalar; SQLite datasets are
+skipped. Not-found items, schema violations and read-only mutations
+land in the GraphQL `errors` array (never a 500).
+
+`POST /package/<name>/save` folds base plus overlays into a NEW
+versioned `.cap` (`<name>-<version+patch>.cap`) in the workdir and
+returns its path and SHA-256; the saved package passes
+`capsium package validate`.
 
 === Reactor introspection API
 
@@ -383,9 +462,10 @@ GET /package/<name>/logs[?lines=N]  # => {"package", "logs": ["<utc> GET / -> 20
 ----
 
 `/introspect/config` never exposes secrets (deploy.json values, or
-credentials embedded in a registry URL, are redacted). The reactor
-serves one package, so `/package/<name>/...` answers `404` for any
-other name. `logs` returns the last N lines (default 100) from a small
+credentials embedded in a registry URL, are redacted). With multiple
+mounted packages the `/api/v1/introspect/*` endpoints aggregate all of
+them, and `/package/<name>/...` resolves by name (404 for unknown
+names). `logs` returns the last N lines (default 100) from a small
 in-memory ring buffer (`Capsium::LogBuffer`) recording key serving
 events; `metrics` counts requests by status in memory
 (`Capsium::Reactor::Metrics`). When authentication is enabled these

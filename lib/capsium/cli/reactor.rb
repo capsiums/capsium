@@ -34,10 +34,13 @@ module Capsium
                              "and saved packages (default: a temporary directory)"
 
       # Thor array options are last-wins when the flag repeats; collect
-      # every --mount value (both "--mount V" and "--mount=V" forms) and
-      # re-emit one trailing occurrence so repetition accumulates.
-      def self.start(given_args = ARGV, config = {})
-        super(merge_mount_options(given_args), config)
+      # every --mount value (both "--mount V" and "--mount=V" forms)
+      # and re-emit one trailing occurrence so repetition accumulates.
+      # (Subcommands are dispatched in-process, so this hooks dispatch,
+      # not start; merging is idempotent for the direct-start flow.)
+      def self.dispatch(meth, given_args, given_opts, config)
+        super(meth, merge_mount_options(given_args),
+              given_opts && merge_mount_options(given_opts), config)
       end
 
       def self.merge_mount_options(args)
