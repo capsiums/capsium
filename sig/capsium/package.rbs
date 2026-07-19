@@ -12,6 +12,7 @@ module Capsium
     ROUTES_FILE: String
     SECURITY_FILE: String
     SIGNATURE_FILE: String
+    AUTHENTICATION_FILE: String
     CONTENT_DIR: String
     DATA_DIR: String
 
@@ -24,6 +25,7 @@ module Capsium
     attr_reader security: Security
     attr_reader load_type: Symbol
     attr_reader resolved_dependencies: Array[ResolvedDependency]
+    attr_reader authentication: Authentication
 
     # Loads a package directory or .cap file. Composite packages
     # (metadata.dependencies, ARCHITECTURE.md section 4a) resolve against

@@ -1,0 +1,15 @@
+{
+  "index": "content/index.html",
+  "routes": [
+    { "path": "/", "resource": "content/index.html" },
+    { "path": "/index.html", "resource": "content/index.html" },
+    {
+      "path": "/api/v1/data/animals",
+      "dataset": "animals",
+      "accessControl": {
+        "roles": ["admin"],
+        "authenticationRequired": true
+      }
+    }
+  ]
+}

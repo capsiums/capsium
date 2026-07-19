@@ -1,0 +1,7 @@
+{
+  "storage": {
+    "dataSets": {
+      "animals": { "source": "data/animals.json" }
+    }
+  }
+}

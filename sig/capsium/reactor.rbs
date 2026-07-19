@@ -16,11 +16,13 @@ module Capsium
     attr_reader server: untyped
     attr_reader server_thread: Thread?
     attr_reader introspection: Introspection
+    attr_reader authenticator: Authenticator
 
     def initialize: (package: Package | String package, ?port: Integer port,
                      ?cache_control: String? cache_control,
                      ?do_not_listen: bool do_not_listen,
-                     ?store: (Package::Store | String)? store) -> void
+                     ?store: (Package::Store | String)? store,
+                     ?deploy: (Hash[String, untyped] | String)? deploy) -> void
 
     def serve: () -> untyped
 

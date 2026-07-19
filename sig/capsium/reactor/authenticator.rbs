@@ -1,0 +1,40 @@
+module Capsium
+  class Reactor
+    # Request authentication and route authorization for the reactor
+    # (05x-authentication, ARCHITECTURE.md section 4b).
+    class Authenticator
+      LOGIN_PATH: String
+
+      attr_reader authentication: Package::Authentication
+      attr_reader deploy: Deploy
+
+      def initialize: (Package::Authentication authentication,
+                       deploy: Deploy deploy, package_path: String package_path,
+                       ?base_url: String? base_url,
+                       ?state_file: String? state_file) -> void
+
+      def enabled?: () -> bool
+
+      # The paths this authenticator answers itself (OAuth2 login and
+      # callback), mounted by the reactor.
+      def endpoints: () -> Array[String]
+
+      def endpoint?: (String path) -> bool
+
+      def serve_endpoint: (untyped request, untyped response) -> untyped
+
+      # The identity for a request — from the session cookie or Basic
+      # credentials — or nil. An identity always carries "roles"
+      # (possibly empty).
+      def authenticate: (untyped request) -> Hash[String, untyped]?
+
+      # 401, with a Basic challenge when basicAuth is enabled.
+      def challenge: (untyped response) -> untyped
+
+      # :ok, :unauthenticated or :forbidden for a route's accessControl
+      # ({"roles": [...], "authenticationRequired": bool}).
+      def authorize: (Hash[String, untyped]? identity,
+                      Hash[String, untyped]? access_control) -> (:ok | :unauthenticated | :forbidden)
+    end
+  end
+end
