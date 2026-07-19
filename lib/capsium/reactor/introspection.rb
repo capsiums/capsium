@@ -62,7 +62,13 @@ module Capsium
       end
 
       def metadata_report
-        { packages: [package_metadata_report] }
+        metadata = package.metadata
+        { packages: [{
+          name: metadata.name,
+          version: metadata.version,
+          author: metadata.author,
+          description: metadata.description
+        }] }
       end
 
       def routes_report

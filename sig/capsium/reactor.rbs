@@ -17,6 +17,11 @@ module Capsium
     attr_reader server_thread: Thread?
     attr_reader introspection: Introspection
     attr_reader authenticator: Authenticator
+    attr_reader store: (Package::Store | String)?
+    attr_reader registry: (Capsium::Registry | String)?
+    attr_reader started_at: Time
+    attr_reader metrics: Metrics
+    attr_reader log_buffer: Capsium::LogBuffer
 
     def initialize: (package: Package | String package, ?port: Integer port,
                      ?cache_control: String? cache_control,

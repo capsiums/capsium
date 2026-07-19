@@ -41,6 +41,27 @@
   registry when the store has no package for its GUID — fallback chain
   store -> registry -> typed error (`DependencyNotFoundError` /
   `UnsatisfiableDependencyError`).
+- Reactor-level and per-package introspection endpoints (ARCHITECTURE.md
+  section 7 follow-ons), extending `Capsium::Reactor::Introspection`:
+  `GET /introspect/status` (`{status, uptime, packagesLoaded}`),
+  `GET /introspect/config` (port, store dir, cacheControl, authEnabled,
+  registry — deploy.json values and registry URL credentials are never
+  exposed) and `GET /introspect/metrics`
+  (`{uptime, requestsTotal, requestsByStatus}`) backed by the new
+  thread-safe in-memory `Capsium::Reactor::Metrics` counter wired into
+  the serving path, plus `GET /package/<name>/status`,
+  `GET /package/<name>/metadata` and `GET /package/<name>/logs` (the
+  reactor serves one package; any other name is a 404). `logs` returns
+  the last N lines (`?lines=N`, default 100) from the new
+  `Capsium::LogBuffer`, a small thread-safe ring buffer recording key
+  serving events (reactor start, package reload, one line per served
+  request). All endpoints are GET-only JSON (405 otherwise) and gated
+  when `authentication.json` enables authentication.
+
+### Changed
+
+- `Metrics/ClassLength` rubocop budget raised to 150 for the reactor
+  and introspection classes grown by the phase-3 endpoints.
 
 ## 0.3.0
 

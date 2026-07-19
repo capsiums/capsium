@@ -1,23 +1,32 @@
 module Capsium
   class Reactor
-    # Monitoring HTTP API reports for the package this reactor serves
-    # (ARCHITECTURE.md section 7).
+    # Monitoring HTTP API reports (ARCHITECTURE.md section 7):
+    # package-level /api/v1/introspect/*, reactor-level /introspect/*
+    # and per-package /package/:id/* endpoints.
     class Introspection
       METADATA_PATH: String
       ROUTES_PATH: String
       CONTENT_HASHES_PATH: String
       CONTENT_VALIDITY_PATH: String
       PATHS: Array[String]
+      STATUS_PATH: String
+      CONFIG_PATH: String
+      METRICS_PATH: String
+      REACTOR_PATHS: Array[String]
+      PACKAGE_MOUNT: String
+      PACKAGE_PATH_PATTERN: Regexp
+      DEFAULT_LOG_LINES: Integer
+      MAX_LOG_LINES: Integer
 
       attr_reader package: Package
 
-      def initialize: (Package package) -> void
+      def initialize: (Package package, ?reactor: Reactor? reactor) -> void
 
       def endpoint?: (String path) -> bool
 
-      # The report body for an introspection endpoint, or nil when the
-      # path is not an introspection endpoint.
-      def report_for: (String path) -> Hash[Symbol, untyped]?
+      # The report body for an endpoint, or nil when the path is not an
+      # endpoint or the package name does not match (404).
+      def report_for: (String path, ?params: Hash[String, String] params) -> Hash[Symbol, untyped]?
 
       def metadata_report: () -> Hash[Symbol, untyped]
 
@@ -26,6 +35,13 @@ module Capsium
       def content_hashes_report: () -> Hash[Symbol, untyped]
 
       def content_validity_report: () -> Hash[Symbol, untyped]
+
+      def status_report: () -> Hash[Symbol, untyped]
+
+      # Reactor configuration; secrets are never exposed.
+      def config_report: () -> Hash[Symbol, untyped]
+
+      def metrics_report: () -> Hash[Symbol, untyped]
     end
   end
 end

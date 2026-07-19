@@ -39,7 +39,9 @@ Metrics/ParameterLists:
     - 'spec/**/*'
 
 Metrics/ClassLength:
-  Max: 120
+  # The reactor (request dispatch + lifecycle) and the introspection
+  # endpoint set grew with the phase-3 follow-ons.
+  Max: 150
 
 Metrics/MethodLength:
   Max: 25

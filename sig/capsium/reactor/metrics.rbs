@@ -1,0 +1,13 @@
+module Capsium
+  class Reactor
+    # Minimal in-memory request counters for the /introspect/metrics
+    # endpoint, thread-safe via Mutex.
+    class Metrics
+      def initialize: () -> void
+
+      def record: (Integer status) -> Metrics
+
+      def snapshot: () -> Hash[Symbol, untyped]
+    end
+  end
+end

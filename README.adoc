@@ -369,6 +369,28 @@ timestamp; `reason` lists the integrity errors when `valid` is false.
 The entry also reports `signed` and `encrypted` status, plus
 `signatureValid` when the package declares a signature.
 
+The reactor also answers reactor-level and per-package introspection
+endpoints (07-reactor follow-ons), likewise GET-only JSON:
+
+[source]
+----
+GET /introspect/status          # => {"status": "running", "uptime": <seconds>, "packagesLoaded": 1}
+GET /introspect/config          # => {"port", "storeDir", "cacheControl", "authEnabled", "registry"}
+GET /introspect/metrics         # => {"uptime", "requestsTotal", "requestsByStatus": {"200": n, ...}}
+GET /package/<name>/status      # => {"package", "version", "status": "loaded", "valid": true}
+GET /package/<name>/metadata    # => {"name", "version", "description", "author", "guid"}
+GET /package/<name>/logs[?lines=N]  # => {"package", "logs": ["<utc> GET / -> 200", ...]}
+----
+
+`/introspect/config` never exposes secrets (deploy.json values, or
+credentials embedded in a registry URL, are redacted). The reactor
+serves one package, so `/package/<name>/...` answers `404` for any
+other name. `logs` returns the last N lines (default 100) from a small
+in-memory ring buffer (`Capsium::LogBuffer`) recording key serving
+events; `metrics` counts requests by status in memory
+(`Capsium::Reactor::Metrics`). When authentication is enabled these
+endpoints are gated like any other route.
+
 == Layered storage
 
 `storage.layers` stacks overlay directories over `content/` (bottom ->

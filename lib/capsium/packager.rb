@@ -16,6 +16,7 @@ module Capsium
     class UnsafeEntryError < Capsium::Error; end
 
     DRIVE_LETTER_PATTERN = %r{\A[A-Za-z]:[/\\]}
+    DOT_ENTRIES = [".", ".."].freeze
 
     def pack(package, options = {})
       directory = package.path
@@ -60,7 +61,7 @@ module Capsium
     def compress_package(package, cap_file)
       entries = Dir.glob(File.join(package.path, "**", "**"), File::FNM_DOTMATCH).reject do |file|
         File.expand_path(file) == File.expand_path(cap_file) ||
-          [".", ".."].include?(File.basename(file))
+          DOT_ENTRIES.include?(File.basename(file))
       end
       Zip::File.open(cap_file, create: true) do |zipfile|
         entries.each do |file|

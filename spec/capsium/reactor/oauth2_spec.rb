@@ -136,11 +136,13 @@ RSpec.describe "OAuth2 authentication (05x-authentication)" do
 
   # Direct handler call with a captured response (reactor spec style).
   def request_to(app, path, headers: {}, query: {})
-    request = instance_double(WEBrick::HTTPRequest, path: path, query: query)
+    request = instance_double(WEBrick::HTTPRequest, path: path, query: query,
+                                                    request_method: "GET")
     allow(request).to receive(:[]) { |name| headers[name] }
     response = instance_double(WEBrick::HTTPResponse)
     result = { headers: {} }
     allow(response).to receive(:status=) { |value| result[:status] = value }
+    allow(response).to receive(:status) { result[:status] }
     allow(response).to receive(:[]=) do |name, value|
       result[:headers][name] = value
     end
