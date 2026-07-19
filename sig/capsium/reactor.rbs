@@ -1,0 +1,30 @@
+module Capsium
+  # Rack-free WEBrick reactor: serves the package routes plus the
+  # Monitoring HTTP API (ARCHITECTURE.md section 7) and reloads the
+  # package on filesystem changes.
+  class Reactor
+    DEFAULT_PORT: Integer
+    DEFAULT_CACHE_CONTROL: String
+
+    attr_reader package: Package
+    attr_reader package_path: String
+    attr_reader routes: Package::Routes
+    attr_reader port: Integer
+    attr_reader cache_control: String?
+    attr_reader server: untyped
+    attr_reader server_thread: Thread?
+    attr_reader introspection: Introspection
+
+    def initialize: (package: Package | String package, ?port: Integer port,
+                     ?cache_control: String? cache_control,
+                     ?do_not_listen: bool do_not_listen) -> void
+
+    def serve: () -> untyped
+
+    def handle_request: (untyped request, untyped response) -> untyped
+
+    def mount_routes: () -> void
+
+    def restart_server: () -> Thread
+  end
+end
