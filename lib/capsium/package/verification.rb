@@ -19,13 +19,15 @@ module Capsium
       # Whether security.json declares a digital signature for this package.
       def signed? = @security.signed?
 
-      # Verifies the declared digital signature (RSA-SHA256) against the
-      # checksum-covered payload. True when the package is unsigned (nothing
-      # declared) or the signature verifies; false on mismatch.
-      def verify_signature = !signed? || Signer.new(@path).verify
+      # Verifies the declared digital signature against the
+      # checksum-covered payload, through the signer matching the
+      # declared certificateType (OpenPgpSigner for OpenPGP, the
+      # RSA-SHA256 Signer otherwise). True when the package is unsigned
+      # (nothing declared) or the signature verifies; false on mismatch.
+      def verify_signature = !signed? || Signer.signer_class_for(@path).new(@path).verify
 
       def verify_signature!
-        Signer.new(@path).verify! if signed?
+        Signer.signer_class_for(@path).new(@path).verify! if signed?
       end
     end
   end

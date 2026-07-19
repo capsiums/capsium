@@ -54,11 +54,26 @@ module Capsium
 
       # Verifies the declared signature of a package directory or .cap
       # file (false on mismatch; raises typed SignatureError subclasses
-      # on structural problems, e.g. an unsigned package).
+      # on structural problems, e.g. an unsigned package). The signer is
+      # selected from the declared digitalSignatures certificateType:
+      # OpenPGP packages verify through OpenPgpSigner.
       def self.verify_package(path, public_key_path = nil)
-        return new(path).verify(public_key_path) unless cap?(path)
+        return signer_class_for(path).new(path).verify(public_key_path) unless cap?(path)
 
-        Packager.new.with_unpacked_cap(path) { |dir| new(dir).verify(public_key_path) }
+        Packager.new.with_unpacked_cap(path) do |dir|
+          signer_class_for(dir).new(dir).verify(public_key_path)
+        end
+      end
+
+      # The signer class matching a package's declared signature scheme:
+      # OpenPgpSigner when security.json declares
+      # digitalSignatures.certificateType "OpenPGP", Signer otherwise.
+      def self.signer_class_for(package_path)
+        security = Security.new(File.join(package_path, Package::SECURITY_FILE))
+        return OpenPgpSigner if security.digital_signatures&.certificate_type ==
+                                OpenPgpSigner::CERTIFICATE_TYPE
+
+        self
       end
 
       def self.cap?(path)

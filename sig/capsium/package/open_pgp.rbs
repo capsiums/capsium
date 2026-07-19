@@ -1,0 +1,38 @@
+module Capsium
+  class Package
+    # OpenPGP support (signatures and encryption) through the rnp gem's
+    # binding to librnp. rnp is a soft dependency: it is only required
+    # when an OpenPGP feature is used, and this module is the single
+    # place that loads it.
+    module OpenPgp
+      # The rnp gem or the librnp shared library is not available.
+      class OpenPgpUnavailableError < Capsium::Error
+      end
+
+      # A key file is unreadable or holds no suitable OpenPGP key.
+      class KeyError < Capsium::Error
+      end
+
+      UNAVAILABLE_MESSAGE: String
+
+      # One loaded key file: the Rnp context holding the key material
+      # and the selected key within it.
+      class LoadedKey
+        def self.new: (untyped rnp, untyped key) -> void
+
+        def rnp: () -> untyped
+        def key: () -> untyped
+      end
+
+      # A fresh Rnp context. Raises OpenPgpUnavailableError when the rnp
+      # gem or librnp cannot be loaded.
+      def self.rnp: () -> untyped
+
+      # Loads the OpenPGP key at key_path (armored or binary, public or
+      # secret — the format is auto-detected). With secret: true the
+      # selected key must hold secret key material. Raises KeyError when
+      # the file is unreadable or holds no suitable key.
+      def self.load_key: (String key_path, ?secret: bool secret) -> LoadedKey
+    end
+  end
+end

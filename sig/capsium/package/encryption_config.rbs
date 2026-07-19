@@ -1,18 +1,22 @@
 module Capsium
   class Package
     # The "encryption" object of signature.json in an encrypted package:
-    # the AES-256-GCM envelope with the RSA-OAEP-SHA256 wrapped DEK, all
-    # binary values Base64-encoded.
+    # the AES-256-GCM envelope. keyManagement selects how the DEK is
+    # protected: "RSA-OAEP-SHA256" carries it Base64-wrapped in
+    # encryptedDek; "OpenPGP" carries an armored OpenPGP message
+    # containing the DEK in message. iv/authTag are Base64.
     class EncryptionEnvelope
       attr_accessor algorithm: String?
       attr_accessor key_management: String?
       attr_accessor encrypted_dek: String?
+      attr_accessor message: String?
       attr_accessor iv: String?
       attr_accessor auth_tag: String?
 
       def initialize: (?algorithm: String? algorithm,
                        ?key_management: String? key_management,
                        ?encrypted_dek: String? encrypted_dek,
+                       ?message: String? message,
                        ?iv: String? iv,
                        ?auth_tag: String? auth_tag) -> void
 

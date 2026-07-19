@@ -37,8 +37,15 @@ module Capsium
 
       # Verifies the declared signature of a package directory or .cap
       # file (false on mismatch; raises typed SignatureError subclasses
-      # on structural problems, e.g. an unsigned package).
+      # on structural problems, e.g. an unsigned package). The signer is
+      # selected from the declared digitalSignatures certificateType:
+      # OpenPGP packages verify through OpenPgpSigner.
       def self.verify_package: (String path, ?String? public_key_path) -> bool
+
+      # The signer class matching a package's declared signature scheme:
+      # OpenPgpSigner when security.json declares
+      # digitalSignatures.certificateType "OpenPGP", Signer otherwise.
+      def self.signer_class_for: (String package_path) -> (singleton(Signer) | singleton(OpenPgpSigner))
 
       # Signs the package directory in place: embeds the public key PEM,
       # regenerates security.json (checksums plus digitalSignatures) and

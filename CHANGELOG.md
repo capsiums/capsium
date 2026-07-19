@@ -4,6 +4,39 @@
 
 ### Added
 
+- OpenPGP signatures and encryption through librnp (new `rnp` gem
+  dependency, loaded lazily — a typed
+  `Capsium::Package::OpenPgp::OpenPgpUnavailableError` with
+  installation guidance is raised when the gem or librnp is missing):
+  - `Capsium::Package::OpenPgpSigner` (parallel to the RSA-SHA256/X.509
+    `Signer`, same construction semantics and `Signer::SignatureError`
+    taxonomy): `capsium package sign PATH --openpgp --key SEC.asc`
+    writes an armored detached OpenPGP signature (SHA-256) over the
+    canonical section-6a payload to `signature.sig`, embeds the armored
+    public key as `signature.pub.asc` and records
+    `"digitalSignatures": {"certificateType": "OpenPGP", ...}` in
+    security.json. Verification auto-detects the scheme from
+    `certificateType` (`Signer.verify_package`,
+    `Package#verify_signature`, the load-time signature gate and
+    `capsium package verify-signature` all dispatch); `--openpgp
+    --cert PUB.asc` verifies with an explicit OpenPGP public key.
+  - `Capsium::Package::OpenPgpCipher < Cipher` (same encrypted .cap
+    layout and AES-256-GCM content encryption): `capsium package
+    encrypt PATH --openpgp --recipient PUB.asc -o OUT.cap` protects the
+    DEK as an armored OpenPGP message
+    (`signature.json`: `{"encryption": {"algorithm": "AES-256-GCM",
+    "keyManagement": "OpenPGP", "message", "iv", "authTag"}}`).
+    Decryption auto-detects the key management from the envelope
+    (`Cipher.for_encrypted`, `Cipher.key_management`), and
+    `Package.new(decryption_key:)` accepts OpenPGP secret keys
+    (armored or binary) transparently. `Cipher`'s envelope/DEK handling
+    was refactored into subclass seams; the RSA-OAEP-SHA256 path is
+    unchanged.
+  - `Capsium::Package::OpenPgp` is the single lazy loader of the rnp
+    binding and the key-file loader (armor/format auto-detection,
+    `OpenPgp::KeyError` for unreadable or unsuitable keys).
+  - The OpenPGP specs skip cleanly when librnp cannot load, so CI
+    without librnp stays green; see README "OpenPGP support (librnp)".
 - Encapsulated packages (bundled dependencies): `capsium package pack
   --bundle-deps` (alias `--bundle`; `Packager#pack` option
   `bundle_deps: true`) resolves every declared `metadata.dependencies`

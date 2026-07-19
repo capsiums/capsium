@@ -93,26 +93,34 @@ module Capsium
         raise Thor::Error, "Package validation failed"
       end
 
-      desc "sign PACKAGE_PATH --key KEY.pem [--cert CERT.pem]",
-           "Sign the package (RSA-SHA256) and record the signature in security.json"
+      desc "sign PACKAGE_PATH --key KEY [--cert CERT.pem] [--openpgp]",
+           "Sign the package (RSA-SHA256/X.509, or OpenPGP) into security.json"
       option :key, type: :string, required: true,
-                   desc: "Path to the RSA private key PEM (min 2048 bits)"
-      option :cert, type: :string,
-                    desc: "Path to the X.509 certificate PEM (must match the key)"
+                   desc: "RSA private key PEM (min 2048 bits); OpenPGP secret key with --openpgp"
+      option :cert, type: :string, desc: "X.509 certificate PEM (must match the key)"
+      option :openpgp, type: :boolean, default: false, desc: "OpenPGP detached signature"
 
       def sign(path_to_package)
-        Capsium::Package::Signer.sign_package(path_to_package, options[:key], options[:cert])
+        if options[:openpgp] && options[:cert]
+          raise Thor::Error, "--cert is only used with X.509 signing"
+        end
+
+        if options[:openpgp]
+          Capsium::Package::OpenPgpSigner.sign_package(path_to_package, options[:key])
+        else
+          Capsium::Package::Signer.sign_package(path_to_package, options[:key], options[:cert])
+        end
         puts "Package signed: #{path_to_package}"
       end
 
-      desc "verify-signature PACKAGE_PATH [--cert CERT.pem]",
-           "Verify the package digital signature declared in security.json"
-      option :cert, type: :string,
-                    desc: "Path to the X.509 certificate or public key PEM " \
-                          "(defaults to the key embedded in the package)"
+      desc "verify-signature PACKAGE_PATH [--cert CERT-or-PUB] [--openpgp]",
+           "Verify the declared digital signature (auto-detected from security.json)"
+      option :cert, type: :string, desc: "certificate or public key (default: embedded)"
+      option :openpgp, type: :boolean, default: false, desc: "verify as OpenPGP"
 
       def verify_signature(path_to_package)
-        unless Capsium::Package::Signer.verify_package(path_to_package, options[:cert])
+        verifier = options[:openpgp] ? Capsium::Package::OpenPgpSigner : Capsium::Package::Signer
+        unless verifier.verify_package(path_to_package, options[:cert])
           raise Thor::Error, "Signature verification failed: #{path_to_package}"
         end
 
@@ -121,30 +129,42 @@ module Capsium
         raise Thor::Error, e.message
       end
 
-      desc "encrypt PACKAGE_PATH --public-key PUB.pem -o OUT.cap",
-           "Encrypt a package (AES-256-GCM, RSA-OAEP-SHA256 wrapped DEK)"
-      option :public_key, type: :string, required: true,
-                          desc: "Path to the recipient RSA public key or X.509 certificate PEM"
+      desc "encrypt PACKAGE_PATH -o OUT.cap [--public-key PUB.pem | --openpgp --recipient PUB]",
+           "Encrypt a package (AES-256-GCM; RSA or OpenPGP key management)"
+      option :public_key, type: :string, desc: "recipient RSA public key or X.509 certificate PEM"
+      option :recipient, type: :string, desc: "recipient OpenPGP public key (with --openpgp)"
+      option :openpgp, type: :boolean, default: false, desc: "encrypt for an OpenPGP recipient"
       option :output, type: :string, required: true, aliases: "-o",
                       desc: "Output path for the encrypted .cap"
 
       def encrypt(path_to_package)
-        Capsium::Package::Cipher.new.encrypt(
-          path_to_package, options[:public_key], options[:output]
-        )
+        key = options[:public_key] || options[:recipient]
+        raise Thor::Error, "encrypt requires --public-key or --openpgp --recipient" if key.nil?
+
+        cipher = options[:openpgp] ? Capsium::Package::OpenPgpCipher.new : Capsium::Package::Cipher.new
+        cipher.encrypt(path_to_package, key, options[:output])
         puts "Package encrypted: #{options[:output]}"
       end
 
-      desc "decrypt PACKAGE_PATH --private-key PRIV.pem [-o OUT.cap]",
-           "Decrypt an encrypted package"
-      option :private_key, type: :string, required: true,
-                           desc: "Path to the recipient RSA private key PEM"
+      desc "decrypt PACKAGE_PATH [--private-key PRIV.pem | --openpgp --key SEC.asc] [-o OUT.cap]",
+           "Decrypt an encrypted package (key management auto-detected from the envelope)"
+      option :private_key, type: :string, desc: "recipient RSA private key PEM"
+      option :key, type: :string, desc: "recipient OpenPGP secret key"
+      option :openpgp, type: :boolean, default: false, desc: "decrypt with an OpenPGP key"
       option :output, type: :string, aliases: "-o",
                       desc: "Output path (default: <name>-decrypted.cap)"
 
       def decrypt(path_to_package)
+        key = options[:private_key] || options[:key]
+        raise Thor::Error, "decrypt requires --private-key (RSA) or --key (OpenPGP)" if key.nil?
+
         output = options[:output] || "#{File.basename(path_to_package, '.cap')}-decrypted.cap"
-        Capsium::Package::Cipher.new.decrypt(path_to_package, options[:private_key], output)
+        cipher = if options[:openpgp]
+                   Capsium::Package::OpenPgpCipher.new
+                 else
+                   Capsium::Package::Cipher.for_encrypted(path_to_package)
+                 end
+        cipher.decrypt(path_to_package, key, output)
         puts "Package decrypted: #{output}"
       end
 

@@ -41,6 +41,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "listen"
   spec.add_dependency "lutaml-model", ">= 0.8", "< 1.0"
   spec.add_dependency "marcel"
+  spec.add_dependency "rnp", ">= 1.0"
   spec.add_dependency "rubyzip", ">= 2.3.2", "< 4.0"
   spec.add_dependency "sqlite3"
   spec.add_dependency "thor"
