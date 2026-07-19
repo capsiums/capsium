@@ -1,0 +1,22 @@
+module Capsium
+  class Reactor
+    # Serving of resolved routes (static files through the merged view,
+    # datasets, handler-route 501s), mixed into Reactor. Includes route
+    # inheritance processing per 05x-routing.
+    module Serving
+      private
+
+      def serve_route: (Package::Route route, untyped response) -> untyped
+
+      def serve_file: (Package::Route route, untyped response) -> untyped
+
+      def inherited_processing: (Package::Route route, String body, Hash[String, String] headers) -> [String, Hash[String, String]]
+
+      def content_type_for: (Package::Route route, String content_path) -> String
+
+      def headers_for: (Package::Route route) -> Hash[String, String]
+
+      def serve_dataset: (String dataset_name, untyped response) -> untyped
+    end
+  end
+end

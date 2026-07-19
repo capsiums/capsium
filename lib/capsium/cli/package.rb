@@ -6,14 +6,17 @@ module Capsium
   class Cli
     class Package < Thor
       extend ThorExt::Start
+      include Formatting
 
       desc "info PACKAGE_PATH", "Display information about the package"
+      option :store, type: :string, desc: "Package store directory (default: CAPSIUM_STORE)"
 
       def info(path_to_package)
-        package = Capsium::Package.new(path_to_package)
+        package = Capsium::Package.new(path_to_package, store: options[:store])
         puts "Package Path: #{package.path}"
         puts "Routes: #{package.routes.to_hash}"
         puts "Manifest: #{package.manifest.to_hash}"
+        print_dependency_tree(package)
       end
 
       desc "manifest PATH_TO_PACKAGE",
@@ -139,15 +142,6 @@ module Capsium
         end
         puts report.summary
         raise Thor::Error, "Package tests failed" unless report.ok?
-      end
-
-      private
-
-      def format_result(result)
-        line = "#{result.ok? ? 'PASS' : 'FAIL'} #{result.name}"
-        return line if result.messages.empty?
-
-        "#{line}: #{result.messages.join('; ')}"
       end
     end
   end

@@ -7,6 +7,9 @@ require "webrick"
 module Capsium
   class Reactor
     autoload :Introspection, "capsium/reactor/introspection"
+    autoload :Serving, "capsium/reactor/serving"
+
+    include Serving
 
     DEFAULT_PORT = 8864
     DEFAULT_CACHE_CONTROL = "public, max-age=31536000"
@@ -15,8 +18,9 @@ module Capsium
                 :server, :server_thread, :introspection
 
     def initialize(package:, port: DEFAULT_PORT,
-                   cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false)
-      @package = package.is_a?(String) ? Package.new(package) : package
+                   cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
+                   store: nil)
+      @package = package.is_a?(String) ? Package.new(package, store: store) : package
       @package_path = @package.path
       @port = port
       @cache_control = cache_control
@@ -39,7 +43,7 @@ module Capsium
     end
 
     def mount_routes
-      paths = @routes.config.routes.map(&:path) + Introspection::PATHS
+      paths = @routes.config.routes.map(&:serving_path) + Introspection::PATHS
       paths.each do |path|
         @server.mount_proc(path.to_s) { |req, res| handle_request(req, res) }
       end
@@ -103,41 +107,6 @@ module Capsium
       response.status = 200
       response["Content-Type"] = "application/json"
       response.body = JSON.generate(@introspection.report_for(request.path))
-    end
-
-    def serve_route(route, response)
-      case route.kind
-      when :dataset then serve_dataset(route.dataset, response)
-      when :resource then serve_file(route, response)
-      else respond_not_implemented(response)
-      end
-    end
-
-    def serve_file(route, response)
-      content_path = @merged_view.resolve(route.resource)
-      if content_path
-        response.status = 200
-        response["Content-Type"] = route.mime(@package.manifest) || "application/octet-stream"
-        headers_for(route).each { |name, value| response[name] = value }
-        response.body = File.read(content_path)
-      else
-        respond_not_found(response)
-      end
-    end
-
-    def headers_for(route)
-      route.headers || (@cache_control ? { "Cache-Control" => @cache_control } : {})
-    end
-
-    def serve_dataset(dataset_name, response)
-      dataset = @package.storage.dataset(dataset_name)
-      if dataset
-        response.status = 200
-        response["Content-Type"] = "application/json"
-        response.body = JSON.generate(dataset.data)
-      else
-        respond_not_found(response)
-      end
     end
 
     def respond_not_found(response) = respond_text(response, 404, "Not Found")

@@ -1,0 +1,39 @@
+module Capsium
+  class Package
+    # A semantic version (MAJOR.MINOR.PATCH[-prerelease][+build]) with
+    # semver precedence ordering.
+    class Version
+      include Comparable
+
+      PATTERN: Regexp
+
+      attr_reader major: Integer
+      attr_reader minor: Integer
+      attr_reader patch: Integer
+      attr_reader prerelease: String?
+
+      def self.parse: (String string) -> Version
+
+      def initialize: (Integer major, Integer minor, Integer patch,
+                       ?String? prerelease) -> void
+
+      def <=>: (Version other) -> Integer
+
+      def to_s: () -> String
+    end
+
+    # A semver range for metadata.dependencies (ARCHITECTURE.md section
+    # 4a): "*", exact versions, wildcards/partials, caret, tilde,
+    # comparison operators and comma/space conjunctions.
+    class VersionRange
+      NUMERIC_PART: Regexp
+      WILDCARD_PART: Regexp
+
+      def self.parse: (String string) -> VersionRange
+
+      def initialize: (Array[[String, Version]] bounds) -> void
+
+      def satisfied_by?: (String | Version version) -> bool
+    end
+  end
+end

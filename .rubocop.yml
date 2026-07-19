@@ -26,6 +26,15 @@ Metrics/BlockLength:
     - 'spec/**/*'
     - 'capsium.gemspec'
 
+# Spec helpers take the parameters the fixtures need.
+Metrics/ModuleLength:
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/ParameterLists:
+  Exclude:
+    - 'spec/**/*'
+
 Metrics/ClassLength:
   Max: 120
 

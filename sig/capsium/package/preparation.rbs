@@ -1,0 +1,19 @@
+module Capsium
+  class Package
+    # Package-source preparation (ARCHITECTURE.md section 1), mixed into
+    # Package: directory/.cap/encrypted-cap detection, extraction and
+    # decryption into a readable package directory.
+    module Preparation
+      def prepare_package: (Pathname path) -> (String | Pathname)
+
+      def decompress_cap_file: (String | Pathname file_path) -> String
+
+      # Decrypts an encrypted package (.cap file or uncompressed directory)
+      # into a temporary directory and returns its path. Raises
+      # Cipher::KeyRequiredError when no decryption_key was given.
+      def decrypt_cap_file: (String | Pathname source_path) -> String
+
+      def determine_load_type: (String | Pathname path) -> Symbol
+    end
+  end
+end

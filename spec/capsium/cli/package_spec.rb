@@ -3,9 +3,28 @@
 require "spec_helper"
 require "openssl"
 require "stringio"
+require_relative "../package/composite_spec_helper"
 
 RSpec.describe Capsium::Cli::Package do
   let(:fixtures_path) { File.expand_path(File.join(__dir__, "..", "..", "fixtures")) }
+
+  describe "info" do
+    it "shows the resolved dependency tree for a composite package" do
+      Dir.mktmpdir do |dir|
+        store = CompositeSpecHelper.build_store(dir)
+        output = capture_stdout do
+          described_class.start(
+            ["info", File.join(fixtures_path, "composite-package"),
+             "--store", store]
+          )
+        end
+        expect(output).to include(
+          "- https://example.com/capsiums/base-package (^1.0.0) => 1.2.0"
+        )
+        expect(output).to include("base-package-1.2.0.cap")
+      end
+    end
+  end
 
   describe "validate" do
     it "reports success for a valid package directory" do

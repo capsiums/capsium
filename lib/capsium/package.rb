@@ -6,9 +6,15 @@ require "tmpdir"
 
 module Capsium
   class Package
+    autoload :Cipher, "capsium/package/cipher"
+    autoload :CircularDependencyError, "capsium/package/dependency_resolver"
+    autoload :Composition, "capsium/package/composition"
     autoload :Dataset, "capsium/package/dataset"
     autoload :DatasetConfig, "capsium/package/storage_config"
-    autoload :Cipher, "capsium/package/cipher"
+    autoload :DependencyError, "capsium/package/dependency_resolver"
+    autoload :DependencyNotFoundError, "capsium/package/dependency_resolver"
+    autoload :DependencyResolver, "capsium/package/dependency_resolver"
+    autoload :DependencyVisibilityError, "capsium/package/dependency_resolver"
     autoload :DigitalSignatures, "capsium/package/security_config"
     autoload :EncryptionConfig, "capsium/package/encryption_config"
     autoload :EncryptionEnvelope, "capsium/package/encryption_config"
@@ -19,8 +25,11 @@ module Capsium
     autoload :MergedView, "capsium/package/merged_view"
     autoload :Metadata, "capsium/package/metadata"
     autoload :MetadataData, "capsium/package/metadata_config"
+    autoload :Preparation, "capsium/package/preparation"
     autoload :Repository, "capsium/package/metadata_config"
+    autoload :ResolvedDependency, "capsium/package/dependency_resolver"
     autoload :Resource, "capsium/package/manifest_config"
+    autoload :ResponseRewrite, "capsium/package/routes_config"
     autoload :Route, "capsium/package/routes_config"
     autoload :Routes, "capsium/package/routes"
     autoload :RoutesConfig, "capsium/package/routes_config"
@@ -31,14 +40,20 @@ module Capsium
     autoload :Storage, "capsium/package/storage"
     autoload :StorageConfig, "capsium/package/storage_config"
     autoload :StorageData, "capsium/package/storage_config"
+    autoload :Store, "capsium/package/store"
     autoload :Testing, "capsium/package/testing"
+    autoload :UnsatisfiableDependencyError, "capsium/package/dependency_resolver"
     autoload :Validator, "capsium/package/validator"
     autoload :Verification, "capsium/package/verification"
+    autoload :Version, "capsium/package/version"
+    autoload :VersionRange, "capsium/package/version"
 
     include Verification
+    include Composition
+    include Preparation
 
     attr_reader :name, :path, :manifest, :metadata, :routes, :storage,
-                :security, :load_type
+                :security, :load_type, :resolved_dependencies
 
     MANIFEST_FILE = "manifest.json"
     METADATA_FILE = "metadata.json"
@@ -49,7 +64,13 @@ module Capsium
     CONTENT_DIR = "content"
     DATA_DIR = "data"
 
-    def initialize(path, load_type: nil, decryption_key: nil)
+    # Loads a package directory or .cap file. Composite packages
+    # (metadata.dependencies, ARCHITECTURE.md section 4a) resolve against
+    # the package store given as `store` (directory path or Store) or via
+    # CAPSIUM_STORE. `dependency_chain` is internal: the ancestor GUIDs
+    # used for circular-dependency detection during recursive resolution.
+    def initialize(path, load_type: nil, decryption_key: nil, store: nil,
+                   dependency_chain: [])
       @decryption_key = decryption_key
       @original_path = Pathname.new(path).expand_path
       @path = prepare_package(@original_path).to_s
@@ -57,17 +78,10 @@ module Capsium
       create_package_structure
       load_package
       @name = metadata.name
+      @resolved_dependencies = resolve_dependencies(store, dependency_chain)
+      validate_dependency_references!
       verify_integrity!
       verify_signature!
-    end
-
-    def prepare_package(path)
-      return decrypt_cap_file(path) if Cipher.encrypted?(path)
-      return path if File.directory?(path)
-      raise Error, "Invalid package path: #{path}" unless File.file?(path)
-      raise Error, "The package must have a .cap extension" unless File.extname(path) == ".cap"
-
-      decompress_cap_file(path)
     end
 
     def solidify
@@ -75,26 +89,6 @@ module Capsium
       @metadata.save_to_file
       @routes.save_to_file
       @storage.save_to_file unless @storage.empty?
-    end
-
-    def decompress_cap_file(file_path)
-      package_path = File.join(Dir.mktmpdir, package_stem(file_path))
-      FileUtils.mkdir_p(package_path)
-      Packager.new.unpack(file_path, package_path)
-      package_path
-    end
-
-    # Decrypts an encrypted package (.cap file or uncompressed directory)
-    # into a temporary directory and returns its path. The metadata.json
-    # of an encrypted package stays cleartext, but everything else is
-    # only readable with the recipient's private key.
-    def decrypt_cap_file(source_path)
-      unless @decryption_key
-        raise Cipher::KeyRequiredError,
-              "Package is encrypted; provide the private key via decryption_key:"
-      end
-
-      Cipher.decrypt_to_directory(source_path, @decryption_key)
     end
 
     def load_package
@@ -109,6 +103,7 @@ module Capsium
     end
 
     def cleanup
+      @resolved_dependencies.each { |dependency| dependency.package.cleanup }
       FileUtils.remove_entry(@path) if @path != @original_path.to_s && File.directory?(@path)
     end
 
@@ -116,10 +111,12 @@ module Capsium
 
     # The merged content view across the storage layers (ARCHITECTURE.md
     # section 5a); exported_only gives the dependent-package view (section 4a).
+    # Resolved dependencies act as read-only layers below all own layers.
     def merged_view(exported_only: false)
       @merged_views ||= {}
       @merged_views[exported_only] ||=
         MergedView.new(@path, storage: @storage, manifest: @manifest,
+                              dependency_views: dependency_views,
                               exported_only: exported_only)
     end
 
@@ -132,36 +129,5 @@ module Capsium
     def content_files
       Dir.glob(File.join(content_path, "**", "*")).select { |file| File.file?(file) }
     end
-
-    def determine_load_type(path)
-      return :directory if File.directory?(path)
-
-      File.extname(path) == ".cap" ? :cap_file : :unsaved
-    end
-
-    private
-
-    def package_stem(file_path)
-      File.basename(file_path, ".cap")
-    end
-
-    def create_package_structure
-      FileUtils.mkdir_p(content_path)
-      FileUtils.mkdir_p(data_path)
-    end
-
-    def content_path = File.join(@path, CONTENT_DIR)
-
-    def data_path = File.join(@path, DATA_DIR)
-
-    def routes_path = File.join(@path, ROUTES_FILE)
-
-    def storage_path = File.join(@path, STORAGE_FILE)
-
-    def metadata_path = File.join(@path, METADATA_FILE)
-
-    def manifest_path = File.join(@path, MANIFEST_FILE)
-
-    def security_path = File.join(@path, SECURITY_FILE)
   end
 end

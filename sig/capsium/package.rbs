@@ -3,6 +3,8 @@ module Capsium
   # (ARCHITECTURE.md section 1).
   class Package
     include Verification
+    include Composition
+    include Preparation
 
     MANIFEST_FILE: String
     METADATA_FILE: String
@@ -21,32 +23,31 @@ module Capsium
     attr_reader storage: Storage
     attr_reader security: Security
     attr_reader load_type: Symbol
+    attr_reader resolved_dependencies: Array[ResolvedDependency]
 
-    def initialize: (String | Pathname path, ?load_type: Symbol? load_type, ?decryption_key: String? decryption_key) -> void
-
-    def prepare_package: (Pathname path) -> (String | Pathname)
+    # Loads a package directory or .cap file. Composite packages
+    # (metadata.dependencies, ARCHITECTURE.md section 4a) resolve against
+    # the package store given as `store` (directory path or Store) or via
+    # CAPSIUM_STORE. `dependency_chain` is internal: the ancestor GUIDs
+    # used for circular-dependency detection during recursive resolution.
+    def initialize: (String | Pathname path, ?load_type: Symbol? load_type,
+                     ?decryption_key: String? decryption_key,
+                     ?store: (Store | String)? store,
+                     ?dependency_chain: Array[String] dependency_chain) -> void
 
     def solidify: () -> void
 
-    def decompress_cap_file: (String | Pathname file_path) -> String
-
-    # Decrypts an encrypted package (.cap file or uncompressed directory)
-    # into a temporary directory and returns its path. Raises
-    # Cipher::KeyRequiredError when no decryption_key was given.
-    def decrypt_cap_file: (String | Pathname source_path) -> String
-
     def load_package: () -> void
 
-    # Removes the temporary extraction directory of a .cap-loaded
-    # package; a no-op for directory loads.
+    # Removes the temporary extraction directories of the package and its
+    # resolved dependencies; a no-op for directory loads.
     def cleanup: () -> void
 
     def datasets: () -> Array[Dataset]
 
-    # The merged content view across the package's storage layers
-    # (ARCHITECTURE.md section 5a). With exported_only: true, private
-    # layers and non-exported resources are hidden — the view a dependent
-    # package gets of this package (section 4a).
+    # The merged content view across the storage layers (ARCHITECTURE.md
+    # section 5a); exported_only gives the dependent-package view (section 4a).
+    # Resolved dependencies act as read-only layers below all own layers.
     def merged_view: (?exported_only: bool exported_only) -> MergedView
 
     # The .cap file this package was loaded from, or nil when loaded
@@ -54,7 +55,5 @@ module Capsium
     def cap_file_path: () -> String?
 
     def content_files: () -> Array[String]
-
-    def determine_load_type: (String | Pathname path) -> Symbol
   end
 end
