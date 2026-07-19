@@ -50,6 +50,63 @@
   open/closed registry of `Capsium::Package::Testing::TestCase`
   subclasses run by `Capsium::Package::Testing::TestSuite`; invalid
   test definitions are reported as failures instead of aborting the run.
+- Layered storage (ARCHITECTURE.md section 5a): `storage.layers` stacks
+  overlay directories over `content/` (bottom -> top in declaration
+  order), each mirroring the `content/` tree.
+  `Capsium::Package::MergedView` — the merged-view home shared by the
+  package (validation) and the reactor (serving) — resolves content
+  top-first, honors `.capsium-tombstones` deletions (a tombstoned path
+  resolves 404 even when a lower layer holds the file, and a tombstone
+  also suppresses dependency content below it), and hides
+  `visibility: private` layers and non-exported resources in the
+  exported-only view dependents get. Packages without a `layers` config
+  behave exactly as before (single implicit `content/` layer).
+- Composite packages (ARCHITECTURE.md section 4a):
+  `metadata.dependencies` (GUID -> semver range) resolve against a
+  package store (`CAPSIUM_STORE` or `--store`) of
+  `<name>-<version>.cap` files plus an optional `index.json` (GUID ->
+  file); the newest satisfying version wins via the built-in semver
+  matcher `Capsium::Package::Version`/`VersionRange` (`>=`, `^`, `~`,
+  exact, `*`, `x`-wildcards/partials, comma/space conjunctions — no new
+  runtime dependency). Resolution is recursive with circularity
+  detection and raises typed errors:
+  `Capsium::Package::DependencyNotFoundError`,
+  `UnsatisfiableDependencyError`, `CircularDependencyError`,
+  `DependencyVisibilityError`.
+- Resolved dependencies become read-only layers below all of the
+  dependent's own layers, and only `exported` resources are visible;
+  routes may address dependency content explicitly as
+  `"<dependency-guid>/<path>"` and declare the route-inheritance
+  attributes of 05x-routing: `remap` (replaces the serving path),
+  `responseRewrite` (`body`, `headers`), `responseHeaders` (merged over
+  served headers) and `requestHeaders` (parsed and exposed for
+  forwarding reactors; a documented no-op for this static reactor).
+  Referencing a dependency's private or missing resource is a load-time
+  error. `capsium package info` prints the resolved dependency tree;
+  `capsium reactor serve` accepts `--store`.
+- Authentication (05x-authentication, ARCHITECTURE.md section 4b):
+  `authentication.json` declares `basicAuth {enabled, passwdFile,
+  realm}` and `oauth2 {enabled, provider, clientId, authorizationUrl,
+  tokenUrl, userinfoUrl, redirectPath, scopes}`; the reactor enforces
+  it via `Capsium::Reactor::Authenticator`. Basic authentication
+  challenges (401 + `WWW-Authenticate`) and verifies against the
+  htpasswd file — bcrypt via the new `bcrypt` runtime dependency, plus
+  pure-Ruby md5-crypt (`$apr1$`/`$1$` as deployed by
+  htpasswd/OpenSSL/glibc), `{SHA}` and a `crypt(3)` fallback.
+  OAuth2 runs the authorization-code flow over net/http: `/auth/login`
+  redirects with HMAC-signed state, the callback exchanges the code at
+  `tokenUrl`, fetches the userinfo claims and establishes an
+  HMAC-SHA256 signed session cookie (`Capsium::Reactor::Session`).
+  Secrets never come from the package: `clientSecret`/`sessionSecret`
+  and role assignments live in `deploy.json` (`--deploy` or
+  `CAPSIUM_DEPLOY`); without a configured session secret the reactor
+  generates one and persists it (mode 0600) outside the package.
+  Dataset-route `accessControl {roles, authenticationRequired}` is
+  enforced after authentication: 401 unauthenticated, 403 unauthorized.
+- The `content-validity` introspection entry now reports `signed` and
+  `encrypted` status, plus `signatureValid` when the package declares a
+  signature; `Capsium::Package#encrypted?` reports whether the package
+  was loaded from an encrypted source.
 
 ### Changed
 
@@ -58,6 +115,15 @@
   cannot be part of it).
 - `capsium package pack` drops signing artifacts (`signature.sig`,
   embedded public key) when repacking: signing is a post-pack step.
+- The reactor serves resources through `Package#merged_view` (the
+  overlay-aware resolution path); behavior is unchanged for packages
+  without layers.
+- Loading a package with declared `metadata.dependencies` now resolves
+  them eagerly against the package store (`store:` or `CAPSIUM_STORE`);
+  a package whose dependencies cannot resolve (including normalized
+  pre-0.2 dependency declarations) fails to load with a typed error.
+- `Metrics/ParameterLists` rubocop budget raised to 6 for the reactor
+  constructor's per-concern keywords.
 
 ## 0.2.0
 
