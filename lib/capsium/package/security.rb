@@ -8,7 +8,8 @@ module Capsium
   class Package
     # Loads, generates and verifies security.json (ARCHITECTURE.md
     # section 6). Checksums cover every file in the package except
-    # security.json itself.
+    # security.json itself and signature.sig (the signature signs the
+    # checksum-covered payload, so it cannot be part of it).
     class Security
       extend Forwardable
 
@@ -39,13 +40,14 @@ module Capsium
         @config = config || load_config
       end
 
-      def self.generate(package_path)
+      def self.generate(package_path, digital_signatures: nil)
         config = SecurityConfig.new(
           security: SecurityData.new(
             integrity_checks: IntegrityChecks.new(
               checksum_algorithm: "SHA-256",
               checksums: checksums_for(package_path)
-            )
+            ),
+            digital_signatures: digital_signatures
           )
         )
         new(File.join(package_path, SECURITY_FILE), config)
@@ -62,11 +64,26 @@ module Capsium
           File.file?(file)
         end
         files.map { |file| file.delete_prefix("#{package_path}/") }
-             .reject { |relative_path| relative_path == SECURITY_FILE }
+             .reject { |relative_path| excluded?(relative_path) }
+      end
+
+      def self.excluded?(relative_path)
+        [SECURITY_FILE, SIGNATURE_FILE].include?(relative_path)
       end
 
       def present?
         !@config.nil?
+      end
+
+      # The declared digitalSignatures block, or nil when absent.
+      def digital_signatures
+        return unless present? && config.security
+
+        config.security.digital_signatures
+      end
+
+      def signed?
+        !digital_signatures&.signature_file.nil?
       end
 
       def checksums

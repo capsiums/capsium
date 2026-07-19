@@ -75,7 +75,9 @@ Paths inside the configuration files are package-relative POSIX paths.
   schema-backed files (`source`, `schemaFile`, `schemaType: json-schema`)
   or SQLite (`databaseFile`, `table`).
 * **security.json**: `security.integrityChecks.checksums` holds a SHA-256 hex
-  digest for every file in the package except `security.json` itself.
+  digest for every file in the package except `security.json` itself and
+  `signature.sig`. When the package is signed, `security.digitalSignatures`
+  records `{ "publicKey", "signatureFile" }`.
 
 Legacy (pre-0.2) configuration files are still accepted on read and
 normalized to the canonical forms; writers emit only the canonical forms.
@@ -154,6 +156,63 @@ Runs a per-check report and exits with status 1 on any failure:
 capsium package info|manifest|routes|metadata|storage path-to-package
 ----
 
+=== Signing a package
+
+[source,bash]
+----
+capsium package sign path-to-package-or-cap --key private.pem [--cert cert.pem]
+----
+
+Signs the package with an RSA private key (minimum 2048 bits) using
+RSA-SHA256, per the packaging standard's digital signature clause. Signing
+is a post-pack step: `pack` drops signing artifacts, so sign the packed
+directory or the `.cap` file itself.
+
+The signed payload is the concatenation, in sorted package-relative path
+order, of the raw bytes of every file covered by the `security.json`
+integrity checksums — i.e. every package file except `security.json` and
+`signature.sig`. The signature over that payload is stored as raw bytes in
+`signature.sig`, the signer's public key PEM is embedded as
+`signature.pub.pem`, and `security.json` records:
+
+[source,json]
+----
+{
+  "security": {
+    "digitalSignatures": {
+      "publicKey": "signature.pub.pem",
+      "signatureFile": "signature.sig"
+    }
+  }
+}
+----
+
+When `--cert` is given, the X.509 certificate must match the private key,
+and the certificate's public key is embedded instead.
+
+The payload construction is openssl-compatible; to verify a signed package
+independently, concatenate the checksum-covered files in sorted order and
+run:
+
+[source,bash]
+----
+openssl dgst -sha256 -verify signature.pub.pem -signature signature.sig payload.bin
+----
+
+=== Verifying a package signature
+
+[source,bash]
+----
+capsium package verify-signature path-to-package-or-cap [--cert cert-or-public-key.pem]
+----
+
+Verifies the declared signature against the package contents (using the
+embedded public key, or the given certificate/public key) and exits with
+status 1 when the package is unsigned or the signature does not match.
+Packages that declare a signature are also verified automatically on load —
+a mismatch raises `Capsium::Package::Signer::SignatureMismatchError`, so a
+tampered signed package cannot be served by the reactor.
+
 == CLI: Reactor
 
 === Starting a reactor on your package
@@ -231,6 +290,16 @@ puts animals.data.inspect
 
 # Verifying integrity (returns a list of typed errors, empty when valid)
 errors = package.verify_integrity
+
+# Digital signatures (RSA-SHA256)
+package.signed?           # => security.json declares digitalSignatures
+package.verify_signature  # => true/false
+
+signer = Capsium::Package::Signer.new(package_dir)
+signer.sign('private.pem')                    # or sign('private.pem', 'cert.pem')
+signer.verify                                 # embedded public key
+signer.verify('cert-or-public-key.pem')       # explicit key
+signer.verify!                                # raises SignatureMismatchError
 ----
 
 === Packing and unpacking programmatically

@@ -7,6 +7,7 @@ module Capsium
     STORAGE_FILE: String
     ROUTES_FILE: String
     SECURITY_FILE: String
+    SIGNATURE_FILE: String
     CONTENT_DIR: String
     DATA_DIR: String
 
@@ -49,5 +50,15 @@ module Capsium
     def verify_integrity: () -> Array[Security::ChecksumMismatch | Security::MissingFile | Security::UncheckedFile]
 
     def verify_integrity!: () -> void
+
+    # Whether security.json declares a digital signature for this package.
+    def signed?: () -> bool
+
+    # Verifies the declared digital signature (RSA-SHA256) against the
+    # checksum-covered payload. True when the package is unsigned or the
+    # signature verifies; false on mismatch.
+    def verify_signature: () -> bool
+
+    def verify_signature!: () -> void
   end
 end

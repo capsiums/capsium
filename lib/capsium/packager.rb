@@ -33,7 +33,7 @@ module Capsium
 
       Dir.mktmpdir do |dir|
         FileUtils.cp_r("#{directory}/.", dir)
-        FileUtils.rm_f(File.join(dir, Package::SECURITY_FILE))
+        strip_security_artifacts(dir)
         new_package = Package.new(dir)
         new_package.solidify
         generate_security(new_package)
@@ -93,6 +93,14 @@ module Capsium
     def generate_security(package)
       security = Package::Security.generate(package.path)
       security.save_to_file
+    end
+
+    # security.json is regenerated on pack; signing artifacts are dropped
+    # because signing is a post-pack step (`capsium package sign`).
+    def strip_security_artifacts(directory)
+      FileUtils.rm_f(File.join(directory, Package::SECURITY_FILE))
+      FileUtils.rm_f(File.join(directory, Package::SIGNATURE_FILE))
+      FileUtils.rm_f(File.join(directory, Package::Signer::PUBLIC_KEY_FILE))
     end
   end
 end
