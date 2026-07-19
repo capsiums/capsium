@@ -21,6 +21,7 @@ module Capsium
       def license: () -> String?
       def repository: () -> Repository?
       def dependencies: () -> Hash[String, String]
+      def read_only: () -> bool?
     end
   end
 end

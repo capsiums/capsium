@@ -1,0 +1,9 @@
+{
+  "storage": {
+    "dataSets": {
+      "notes": {
+        "source": "data/notes.json"
+      }
+    }
+  }
+}

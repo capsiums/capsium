@@ -24,6 +24,7 @@ module Capsium
     attr_reader metrics: Metrics
     attr_reader log_buffer: Capsium::LogBuffer
     attr_reader mounts: Array[Mount]
+    attr_reader workdir: String
 
     def initialize: (?package: (Package | String)? package, ?mounts: Array[Mount]? mounts,
                      ?port: Integer port,
@@ -31,7 +32,8 @@ module Capsium
                      ?do_not_listen: bool do_not_listen,
                      ?store: (Package::Store | String)? store,
                      ?deploy: (Hash[String, untyped] | String)? deploy,
-                     ?registry: (Capsium::Registry | String)? registry) -> void
+                     ?registry: (Capsium::Registry | String)? registry,
+                     ?workdir: String? workdir) -> void
 
     def serve: () -> untyped
 

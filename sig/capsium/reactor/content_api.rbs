@@ -1,0 +1,19 @@
+module Capsium
+  class Reactor
+    # Content writes over the mount's overlay (ARCHITECTURE.md section
+    # 5a): PUT creates/overwrites a content file, DELETE records a
+    # tombstone. Text bodies only for v1.
+    class ContentApi
+      include Responses
+
+      WRITE_METHODS: Array[String]
+      CONTENT_PREFIX: String
+
+      def self.write_method?: (String method) -> bool
+
+      def initialize: (Mount mount) -> void
+
+      def handle: (String inner_path, untyped request, untyped response) -> untyped
+    end
+  end
+end

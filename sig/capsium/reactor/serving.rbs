@@ -8,8 +8,24 @@ module Capsium
 
       private
 
+      # The mount answering a request path: longest matching prefix wins.
+      def resolve_mount: (String path) -> Mount?
+
+      def mounts_by_length: () -> Array[Mount]
+
+      # The root ("/") mount, or the first mount when nothing is mounted
+      # at the root.
+      def root_mount: () -> Mount
+
       # Serves a request that matched a mount.
       def serve_mounted_request: (Mount mount, untyped identity, untyped request, untyped response) -> untyped
+
+      def serve_data_api: (Mount mount, untyped identity, String inner, untyped request, untyped response) -> untyped
+
+      def serve_content_api: (Mount mount, untyped identity, String inner, untyped request, untyped response) -> untyped
+
+      # Route-level access control; false when the response was written.
+      def authorized?: (untyped identity, Package::Route route, untyped response) -> bool
 
       def serve_route: (Mount mount, Package::Route route, untyped response) -> untyped
 

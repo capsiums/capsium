@@ -1,13 +1,30 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require "json"
 require "listen"
 require "tmpdir"
 require "webrick"
 
+# WEBrick's ProcHandler only dispatches do_GET/do_POST/do_PUT; the
+# writable-package API (REST CRUD, content writes) also needs DELETE
+# and PATCH. AbstractServlet#service looks the do_<METHOD> up per
+# request, so aliasing the missing verbs routes them to the same proc.
+# rubocop:disable Style/OneClassPerFile
+module WEBrick
+  module HTTPServlet
+    class ProcHandler < AbstractServlet
+      alias do_DELETE do_GET # rubocop:disable Naming/MethodName
+      alias do_PATCH do_GET # rubocop:disable Naming/MethodName
+    end
+  end
+end
+
 module Capsium
   class Reactor
     autoload :Authenticator, "capsium/reactor/authenticator"
+    autoload :ContentApi, "capsium/reactor/content_api"
+    autoload :DataApi, "capsium/reactor/data_api"
     autoload :Deploy, "capsium/reactor/deploy"
     autoload :Htpasswd, "capsium/reactor/htpasswd"
     autoload :Introspection, "capsium/reactor/introspection"
@@ -15,6 +32,7 @@ module Capsium
     autoload :Mount, "capsium/reactor/mount"
     autoload :MountConflictError, "capsium/reactor/mount"
     autoload :OAuth2, "capsium/reactor/oauth2"
+    autoload :Overlay, "capsium/reactor/overlay"
     autoload :Responses, "capsium/reactor/responses"
     autoload :Serving, "capsium/reactor/serving"
     autoload :Session, "capsium/reactor/session"
@@ -28,18 +46,24 @@ module Capsium
     attr_reader :package, :package_path, :routes, :port, :cache_control,
                 :server, :server_thread, :introspection, :authenticator,
                 :store, :registry, :started_at, :metrics, :log_buffer,
-                :mounts
+                :mounts, :workdir
 
     # Serves one or more packages: either a single `package` (directory,
     # .cap file or Package, mounted at "/") or a list of `mounts`
-    # (Reactor::Mount) resolved by longest-prefix matching.
+    # (Reactor::Mount) resolved by longest-prefix matching. `workdir`
+    # holds the writable overlays (ARCHITECTURE.md section 5a) and
+    # saved packages; it defaults to a temporary directory the reactor
+    # removes on cleanup.
     def initialize(package: nil, mounts: nil, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
-                   store: nil, deploy: nil, registry: nil)
+                   store: nil, deploy: nil, registry: nil, workdir: nil)
       @store = store
       @registry = registry
+      @workdir = workdir || Dir.mktmpdir("capsium-reactor-")
+      @own_workdir = workdir.nil?
       @mounts = mounts || [Mount.new(path: Mount::ROOT_PATH, package: package,
                                      store: store, registry: registry)]
+      @mounts.each { |mount| mount.attach_workdir(@workdir) }
       @port = port
       @cache_control = cache_control
       @started_at = Time.now
@@ -89,9 +113,11 @@ module Capsium
       @server_thread = start_server
     end
 
-    # Cleans up every mounted package (Package#cleanup for all).
+    # Cleans up every mounted package (Package#cleanup for all) and the
+    # workdir when the reactor created it.
     def cleanup
       @mounts.each { |mount| mount.package.cleanup }
+      FileUtils.remove_entry(@workdir) if @own_workdir && File.directory?(@workdir)
     end
 
     private
@@ -149,23 +175,6 @@ module Capsium
       )
     end
 
-    # The mount answering a request path: longest matching prefix wins.
-    def resolve_mount(path)
-      mounts_by_length.find { |mount| mount.matches?(path) }
-    end
-
-    def mounts_by_length
-      @mounts_by_length ||= @mounts.sort_by { |mount| -mount.path.length }
-    end
-
-    # The root ("/") mount, or the first mount when nothing is mounted
-    # at the root: its package drives the single-package readers
-    # (package, routes, merged_view), authentication and the
-    # reactor-level introspection.
-    def root_mount
-      @mounts.find { |mount| mount.path == Mount::ROOT_PATH } || @mounts.first
-    end
-
     def dispatch_request(request, response)
       if @authenticator.endpoint?(request.path)
         @authenticator.serve_endpoint(request, response)
@@ -201,3 +210,5 @@ module Capsium
     end
   end
 end
+
+# rubocop:enable Style/OneClassPerFile

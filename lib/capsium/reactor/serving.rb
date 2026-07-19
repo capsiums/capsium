@@ -13,19 +13,69 @@ module Capsium
 
       private
 
-      # Serves a request that matched a mount: resolves the
-      # package-local path against the mount's routes, enforces
-      # route-level access control and serves the route.
-      def serve_mounted_request(mount, identity, request, response)
-        route = mount.routes.resolve(mount.inner_path(request.path))
-        return respond_not_found(response) unless route
+      # The mount answering a request path: longest matching prefix wins.
+      def resolve_mount(path)
+        mounts_by_length.find { |mount| mount.matches?(path) }
+      end
 
-        case @authenticator.authorize(identity, route.access_control)
-        when :unauthenticated then return @authenticator.challenge(response)
-        when :forbidden then return respond_forbidden(response)
+      def mounts_by_length
+        @mounts_by_length ||= @mounts.sort_by { |mount| -mount.path.length }
+      end
+
+      # The root ("/") mount, or the first mount when nothing is mounted
+      # at the root: its package drives the single-package readers
+      # (package, routes, merged_view), authentication and the
+      # reactor-level introspection.
+      def root_mount
+        @mounts.find { |mount| mount.path == Mount::ROOT_PATH } || @mounts.first
+      end
+
+      # Serves a request that matched a mount: dataset CRUD and content
+      # writes go to the mount's APIs, everything else resolves against
+      # the mount's routes. Route-level access control is enforced for
+      # the addressed route in every case.
+      def serve_mounted_request(mount, identity, request, response)
+        inner = mount.inner_path(request.path)
+        return serve_data_api(mount, identity, inner, request, response) if DataApi.path?(inner)
+        if ContentApi.write_method?(request.request_method)
+          return serve_content_api(mount, identity, inner, request, response)
         end
 
+        route = mount.routes.resolve(inner)
+        return respond_not_found(response) unless route
+        return unless authorized?(identity, route, response)
+
         serve_route(mount, route, response)
+      end
+
+      def serve_data_api(mount, identity, inner, request, response)
+        route = mount.data_api.route_for(inner)
+        return respond_not_found(response) unless route
+        return unless authorized?(identity, route, response)
+
+        mount.data_api.handle(inner, request, response)
+      end
+
+      def serve_content_api(mount, identity, inner, request, response)
+        route = mount.routes.resolve(inner)
+        return unless !route || authorized?(identity, route, response)
+
+        mount.content_api.handle(inner, request, response)
+      end
+
+      # Route-level access control (05x-authentication): writes the
+      # challenge/forbidden response and returns false when the
+      # identity may not proceed.
+      def authorized?(identity, route, response)
+        case @authenticator.authorize(identity, route.access_control)
+        when :unauthenticated
+          @authenticator.challenge(response)
+          false
+        when :forbidden
+          respond_forbidden(response)
+          false
+        else true
+        end
       end
 
       def serve_route(mount, route, response)
@@ -82,7 +132,7 @@ module Capsium
         if dataset
           response.status = 200
           response["Content-Type"] = "application/json"
-          response.body = JSON.generate(dataset.data)
+          response.body = JSON.generate(mount.dataset_data(dataset))
         else
           respond_not_found(response)
         end

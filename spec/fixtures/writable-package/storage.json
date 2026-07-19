@@ -1,0 +1,11 @@
+{
+  "storage": {
+    "dataSets": {
+      "notes": {
+        "source": "data/notes.json",
+        "schemaFile": "data/notes_schema.json",
+        "schemaType": "json-schema"
+      }
+    }
+  }
+}

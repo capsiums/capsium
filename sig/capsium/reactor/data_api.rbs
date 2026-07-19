@@ -1,0 +1,23 @@
+module Capsium
+  class Reactor
+    # REST CRUD over a mount's datasets (ARCHITECTURE.md sections 5 and
+    # 5a): JSON item append/read/replace/delete against the
+    # overlay-merged collection.
+    class DataApi
+      include Responses
+
+      PREFIX: String
+      COLLECTION_PATTERN: Regexp
+      ITEM_PATTERN: Regexp
+
+      def self.path?: (String inner_path) -> bool
+
+      def initialize: (Mount mount) -> void
+
+      # The declared dataset route a data path addresses, or nil.
+      def route_for: (String inner_path) -> Package::Route?
+
+      def handle: (String inner_path, untyped request, untyped response) -> untyped
+    end
+  end
+end

@@ -26,6 +26,8 @@ module Capsium
     # With `exported_only: true` (the view a dependent package gets):
     # layers whose visibility is "private" are hidden entirely, and a path
     # resolves only when the manifest lists the resource as "exported".
+    # `extra_layers` stack on top of ALL own layers (e.g. the reactor's
+    # writable overlay, section 5a).
     class MergedView
       # A single read layer: an absolute root directory mirroring the
       # content/ tree, plus its parsed tombstone set.
@@ -45,13 +47,13 @@ module Capsium
       attr_reader :package_path, :layers, :dependency_views
 
       def initialize(package_path, storage:, manifest:, dependency_views: [],
-                     exported_only: false)
+                     exported_only: false, extra_layers: [])
         @package_path = package_path
         @storage = storage
         @manifest = manifest
         @exported_only = exported_only
         @dependency_views = dependency_views
-        @layers = build_layers
+        @layers = build_layers + extra_layers
       end
 
       # The absolute filesystem path serving a resource reference: a

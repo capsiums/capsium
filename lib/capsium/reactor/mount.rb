@@ -23,7 +23,7 @@ module Capsium
       # overrides the global package store for this mount.
       Entry = Data.define(:path, :source, :store)
 
-      attr_reader :path, :package
+      attr_reader :path, :package, :overlay
 
       # Parses a "--mount PATH=SOURCE" command-line value into an Entry.
       def self.parse_spec(spec)
@@ -111,11 +111,25 @@ module Capsium
         normalized.chomp(ROOT_PATH)
       end
 
-      def initialize(path:, package:, store: nil, registry: nil)
+      def initialize(path:, package:, store: nil, registry: nil, workdir: nil)
         @path = self.class.normalize_path(path)
         @store = store
         @registry = registry
         @package = self.class.load_package(package, store, registry)
+        attach_workdir(workdir) if workdir
+      end
+
+      # Attaches the reactor workdir: the writable overlay (topmost
+      # layer, ARCHITECTURE.md section 5a) lives under it. Reads always
+      # resolve through the overlay; writes require #writable?.
+      def attach_workdir(workdir)
+        @overlay = Overlay.new(root: File.join(workdir, "overlays", @package.name))
+      end
+
+      # Writable unless the package declares "readOnly": true; writes
+      # then produce 403s and no overlay state is recorded.
+      def writable?
+        !@overlay.nil? && @package.metadata.read_only != true
       end
 
       # Whether this mount answers the given request path: the prefix
@@ -137,7 +151,26 @@ module Capsium
 
       def routes = @package.routes
 
-      def merged_view = @package.merged_view
+      # The merged content view; the overlay is always the topmost
+      # layer when a workdir is attached (hot-swap: content writes and
+      # tombstones resolve on the next request).
+      def merged_view
+        @merged_view ||= if @overlay
+                           @package.merged_view(extra_layers: [@overlay.layer])
+                         else
+                           @package.merged_view
+                         end
+      end
+
+      # The dataset as served: base data merged with the overlay's
+      # mutation log.
+      def dataset_data(dataset)
+        @overlay ? @overlay.dataset_data(dataset) : dataset.data
+      end
+
+      def data_api = @data_api ||= DataApi.new(self)
+
+      def content_api = @content_api ||= ContentApi.new(self)
 
       # The one-line "name version" summary used in reactor logs.
       def summary = "#{@package.name} #{@package.metadata.version}"
@@ -153,8 +186,10 @@ module Capsium
       end
 
       # Reloads the package from its (prepared) path, e.g. after the
-      # filesystem listener noticed changes.
+      # filesystem listener noticed changes. The overlay survives (it
+      # lives in the reactor workdir, not in the package).
       def reload
+        @merged_view = nil
         @package = Package.new(@package.path, store: @store, registry: @registry)
       end
     end

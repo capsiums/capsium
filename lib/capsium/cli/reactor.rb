@@ -29,6 +29,9 @@ module Capsium
       option :config, type: :string,
                       desc: "JSON mount config: " \
                             '{"mounts": [{"path": "/", "source": "...", "store": "..."}]}'
+      option :workdir, type: :string,
+                       desc: "Reactor work directory for writable overlays " \
+                             "and saved packages (default: a temporary directory)"
 
       # Thor array options are last-wins when the flag repeats; collect
       # every --mount value (both "--mount V" and "--mount=V" forms) and
@@ -76,7 +79,8 @@ module Capsium
           do_not_listen: options[:do_not_listen],
           store: options[:store],
           deploy: options[:deploy],
-          registry: options[:registry]
+          registry: options[:registry],
+          workdir: options[:workdir]
         )
         reactor.serve
       rescue Capsium::Error => e

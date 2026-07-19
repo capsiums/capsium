@@ -122,7 +122,16 @@ module Capsium
     # The merged content view across the storage layers (ARCHITECTURE.md
     # section 5a); exported_only gives the dependent-package view (section 4a).
     # Resolved dependencies act as read-only layers below all own layers.
-    def merged_view(exported_only: false)
+    # extra_layers stack above everything (the reactor's writable overlay);
+    # views with extra layers are built fresh, not memoized.
+    def merged_view(exported_only: false, extra_layers: [])
+      unless extra_layers.empty?
+        return MergedView.new(@path, storage: @storage, manifest: @manifest,
+                                     dependency_views: dependency_views,
+                                     exported_only: exported_only,
+                                     extra_layers: extra_layers)
+      end
+
       @merged_views ||= {}
       @merged_views[exported_only] ||=
         MergedView.new(@path, storage: @storage, manifest: @manifest,

@@ -1,0 +1,9 @@
+{
+  "name": "writable-package",
+  "version": "0.1.0",
+  "description": "A writable package with a schema-backed collection",
+  "guid": "https://github.com/capsiums/writable-package",
+  "uuid": "123e4567-e89b-12d3-a456-426614174010",
+  "author": "Ribose Inc.",
+  "license": "MIT"
+}
