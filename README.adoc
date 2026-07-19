@@ -55,6 +55,7 @@ manifest.json     # auto-generated at load/pack time when absent
 routes.json       # auto-generated when absent
 storage.json      # optional (only when datasets exist)
 security.json     # generated at pack time (SHA-256 checksums)
+authentication.json # optional (user authentication)
 content/          # served content root (URL space mirrors paths below it)
 data/             # datasets (optional)
 ----
@@ -73,11 +74,15 @@ Paths inside the configuration files are package-relative POSIX paths.
   full filename); the index HTML additionally gets `/`.
 * **storage.json**: dataset definitions under `storage.dataSets`, either
   schema-backed files (`source`, `schemaFile`, `schemaType: json-schema`)
-  or SQLite (`databaseFile`, `table`).
+  or SQLite (`databaseFile`, `table`). `storage.layers` declares overlay
+  layers (see "Layered storage" below).
 * **security.json**: `security.integrityChecks.checksums` holds a SHA-256 hex
   digest for every file in the package except `security.json` itself and
   `signature.sig`. When the package is signed, `security.digitalSignatures`
   records `{ "publicKey", "signatureFile" }`.
+* **authentication.json**: optional user authentication (see
+  "Authentication" below): `authentication.basicAuth` and/or
+  `authentication.oauth2`.
 
 Legacy (pre-0.2) configuration files are still accepted on read and
 normalized to the canonical forms; writers emit only the canonical forms.
@@ -153,8 +158,12 @@ Runs a per-check report and exits with status 1 on any failure:
 
 [source,bash]
 ----
-capsium package info|manifest|routes|metadata|storage path-to-package
+capsium package info|manifest|routes|metadata|storage path-to-package [--store DIR]
 ----
+
+`info` additionally prints the resolved dependency tree for composite
+packages (declared GUID and range, resolved version, store `.cap`), see
+"Composite packages" below.
 
 === Signing a package
 
@@ -321,11 +330,14 @@ with status 1 when any test fails (or a test definition is invalid).
 
 [source,bash]
 ----
-capsium reactor serve my_package.cap [--port 8864]
+capsium reactor serve my_package.cap [--port 8864] [--store DIR] [--deploy deploy.json]
 ----
 
 The reactor takes a local package directory or `.cap` file; serving
-directly from a URL is not supported.
+directly from a URL is not supported. `--store` (or `CAPSIUM_STORE`)
+resolves composite-package dependencies; `--deploy` (or
+`CAPSIUM_DEPLOY`) points at the reactor-side `deploy.json` with
+authentication secrets (see "Authentication" below).
 
 === Reactor introspection API
 
@@ -350,6 +362,116 @@ content checksums — the same data `security.json` integrityChecks carry.
 `content-validity` re-verifies the package against `security.json` on
 every request and reports the outcome with a UTC `lastChecked`
 timestamp; `reason` lists the integrity errors when `valid` is false.
+The entry also reports `signed` and `encrypted` status, plus
+`signatureValid` when the package declares a signature.
+
+== Layered storage
+
+`storage.layers` stacks overlay directories over `content/` (bottom ->
+top in declaration order), each mirroring the `content/` tree:
+
+[source,json]
+----
+{ "storage": { "layers": [
+    { "path": "base",    "writable": false, "visibility": "exported" },
+    { "path": "updates", "writable": true,  "visibility": "private" }
+] } }
+----
+
+A request resolves against layers from the TOP down; the first hit
+wins. Deletions are recorded as tombstones: a `.capsium-tombstones`
+JSON file (an array of `content/`-relative paths) in a writable layer;
+a tombstoned path resolves 404 even when a lower layer holds the file,
+while a file reappearing above the tombstone is served again. Packages
+without a `layers` config behave exactly as before (single implicit
+`content/` layer). `visibility: private` layers are hidden from
+dependent packages (see below), as are resources whose manifest
+visibility is `private`.
+
+== Composite packages
+
+`metadata.dependencies` maps a dependency GUID to a semver range
+(`>=1.0.0`, `^1.2.3`, `~1.2.3`, exact, `*`, `1.x`/`1.2.x`, partials,
+and comma/space conjunctions like `>=1.0.0, <2.0.0`). Dependencies
+resolve against a *package store* — a directory of
+`<name>-<version>.cap` files plus an optional `index.json` (GUID ->
+file) — given via `CAPSIUM_STORE` or `--store`; the newest satisfying
+version wins.
+
+On load, each resolved dependency's exported content becomes read-only
+layers below all of the dependent's own layers. Routes may address
+dependency content explicitly (`"resource": "<dependency-guid>/content/app.js"`)
+or declare route-inheritance attributes per 05x-routing: `remap`
+(replaces the serving path), `responseRewrite` (`body`, `headers`),
+`responseHeaders` (merged over served headers) and `requestHeaders`
+(parsed and exposed for forwarding reactors; this reactor serves
+statically, so they do not alter its responses). Referencing a
+dependency's private or missing resource is a load-time error, as are
+circular, missing or unsatisfiable dependencies.
+
+[source,bash]
+----
+capsium package info my-composite-package --store ./store
+capsium reactor serve my-composite-package --store ./store
+----
+
+== Authentication
+
+`authentication.json` enables user authentication (05x-authentication):
+
+[source,json]
+----
+{ "authentication": {
+    "basicAuth": { "enabled": true, "passwdFile": "auth/.htpasswd", "realm": "capsium" },
+    "oauth2": { "enabled": true, "provider": "google", "clientId": "...",
+                "authorizationUrl": "...", "tokenUrl": "...", "userinfoUrl": "...",
+                "redirectPath": "/auth/callback", "scopes": ["openid", "email"] }
+} }
+----
+
+When enabled, the reactor challenges every unauthenticated request
+(`401`, with `WWW-Authenticate: Basic realm="..."` when basicAuth is
+enabled) and verifies credentials against the htpasswd file. Supported
+hashes: bcrypt (`htpasswd -B`, via the `bcrypt` gem), Apache apr1 MD5
+and md5-crypt (`$apr1$`/`$1$`, pure Ruby), unsalted SHA-1 (`{SHA}`),
+and a platform `crypt(3)` fallback for the rest.
+
+With OAuth2, `/auth/login` redirects to the provider with HMAC-signed
+state; the callback exchanges the code at `tokenUrl`, fetches the
+userinfo claims and establishes an HMAC-SHA256 signed session cookie
+(`capsium_session`, `HttpOnly; SameSite=Lax`). Provider errors during
+the exchange answer `502`; a tampered state answers `401`.
+
+Route-level `accessControl` on dataset routes is enforced after
+authentication — `401` unauthenticated, `403` when the identity lacks a
+required role:
+
+[source,json]
+----
+{ "path": "/api/v1/data/animals", "dataset": "animals",
+  "accessControl": { "roles": ["admin"], "authenticationRequired": true } }
+----
+
+Secrets NEVER come from the package. They live in `deploy.json`
+(`--deploy` or `CAPSIUM_DEPLOY`):
+
+[source,json]
+----
+{
+  "baseUrl": "http://localhost:8864",
+  "authentication": {
+    "basicAuth": { "passwdFile": "/secure/outside/package/.htpasswd" },
+    "oauth2": { "clientSecret": "..." },
+    "sessionSecret": "...",
+    "roles": { "alice": ["admin"] }
+  }
+}
+----
+
+`roles` assigns roles by identity name (basic-auth username, OAuth2
+email or subject); userinfo `roles` claims are honored too. Without a
+configured `sessionSecret`, the reactor generates one and persists it
+(mode `0600`) outside the package.
 
 == Programmatically managing packages
 
@@ -419,6 +541,23 @@ report = Capsium::Package::Testing::TestSuite.new(package).run
 report.ok?       # => true/false
 report.failures  # => failed TestCase::Result list
 report.summary   # => "7 tests, 0 failures"
+
+# Layered storage (5a): the merged overlay view shared with the reactor
+view = package.merged_view
+view.resolve('content/app.js')   # => absolute path of the topmost hit, or nil
+
+# Composite packages (4a): resolve metadata.dependencies against a store
+package = Capsium::Package.new(dir, store: './store')  # or CAPSIUM_STORE
+package.resolved_dependencies.each do |dep|
+  puts "#{dep.guid} (#{dep.range}) => #{dep.version} [#{dep.path}]"
+end
+view = package.merged_view                # own layers over dependency layers
+view = package.merged_view(exported_only: true)  # what dependents may see
+
+# Serving with authentication and a store
+reactor = Capsium::Reactor.new(package: dir, store: './store',
+                              deploy: 'deploy.json')
+reactor.serve
 ----
 
 === Packing and unpacking programmatically
