@@ -9,6 +9,14 @@ module Capsium
   class Packager
     class FileAlreadyExistsError < StandardError; end
 
+    # Raised when a .cap archive contains an entry whose name would be
+    # written outside the destination directory (absolute paths, drive
+    # letters, ".." segments) — zip-slip protection, on par with the Lua
+    # reactor's extractor.
+    class UnsafeEntryError < Capsium::Error; end
+
+    DRIVE_LETTER_PATTERN = %r{\A[A-Za-z]:[/\\]}
+
     def pack(package, options = {})
       directory = package.path
       output_file_name = "#{package.metadata.name}-#{package.metadata.version}.cap"
@@ -39,9 +47,10 @@ module Capsium
     end
 
     def unpack(cap_file_path, destination)
+      destination = File.expand_path(destination)
       Zip::File.open(cap_file_path) do |zip_file|
         zip_file.each do |entry|
-          entry_path = File.join(destination, entry.name)
+          entry_path = safe_entry_path(destination, entry.name)
           FileUtils.mkdir_p(File.dirname(entry_path))
           entry.extract(entry_path)
         end
@@ -64,6 +73,22 @@ module Capsium
     end
 
     private
+
+    # Resolves an entry name against the destination and returns the
+    # absolute target path, raising UnsafeEntryError when the entry would
+    # escape the destination (zip-slip).
+    def safe_entry_path(destination, entry_name)
+      entry_path = File.expand_path(entry_name, destination)
+      return entry_path if contained?(entry_path, destination) &&
+                           !entry_name.match?(DRIVE_LETTER_PATTERN)
+
+      raise UnsafeEntryError,
+            "Refusing to extract unsafe zip entry: #{entry_name}"
+    end
+
+    def contained?(entry_path, destination)
+      entry_path.start_with?("#{destination}#{File::SEPARATOR}")
+    end
 
     def generate_security(package)
       security = Package::Security.generate(package.path)

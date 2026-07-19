@@ -3,7 +3,6 @@
 require "fileutils"
 require "pathname"
 require "tmpdir"
-require "zip"
 
 module Capsium
   class Package
@@ -71,15 +70,7 @@ module Capsium
     def decompress_cap_file(file_path)
       package_path = File.join(Dir.mktmpdir, package_stem(file_path))
       FileUtils.mkdir_p(package_path)
-
-      Zip::File.open(file_path) do |zip_file|
-        zip_file.each do |entry|
-          entry_path = File.join(package_path, entry.name)
-          FileUtils.mkdir_p(File.dirname(entry_path))
-          entry.extract(entry_path)
-        end
-      end
-
+      Packager.new.unpack(file_path, package_path)
       package_path
     end
 
