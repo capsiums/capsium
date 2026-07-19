@@ -1,0 +1,20 @@
+module Capsium
+  class Reactor
+    # Builds the GraphQL schema for a mounted package: per dataset a
+    # query field "<dataset>" (list, optional "id:") plus
+    # create<Dataset>/update<Dataset>/delete<Dataset> mutations. Item
+    # types are inferred from the dataset's JSON schema when present.
+    class GraphqlSchema
+      # Permissive scalar carrying any JSON value.
+      class JsonScalar < GraphQL::Schema::Scalar
+        def self.coerce_input: (untyped input_value, untyped _context) -> untyped
+
+        def self.coerce_result: (untyped ruby_value, untyped _context) -> untyped
+      end
+
+      def initialize: (Mount mount, GraphqlApi api) -> void
+
+      def build: () -> singleton(GraphQL::Schema)
+    end
+  end
+end

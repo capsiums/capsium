@@ -1,0 +1,27 @@
+module Capsium
+  class Reactor
+    # GraphQL over a mount's datasets (POST and GET <mount>/graphql):
+    # executes the derived schema and maps typed overlay errors into
+    # the "errors" array.
+    class GraphqlApi
+      include Responses
+
+      PATH: String
+
+      def self.path?: (String inner_path) -> bool
+
+      def initialize: (Mount mount) -> void
+
+      def handle: (untyped request, untyped response) -> untyped
+
+      # Query/mutation resolvers called from the derived schema.
+      def collection: (Package::Dataset dataset, ?id: String? id) -> Array[untyped]
+
+      def create_item: (Package::Dataset dataset, item: untyped item) -> untyped
+
+      def update_item: (Package::Dataset dataset, id: String id, item: untyped item) -> untyped
+
+      def remove_item: (Package::Dataset dataset, id: String id) -> bool
+    end
+  end
+end
