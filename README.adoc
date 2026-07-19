@@ -13,17 +13,10 @@ various applications.
 
 [source,bash]
 ----
-$ capsium reactor serve https://github.com/capsiums/cap-story/releases/download/v0.9.0/story_of_claire-0.9.0.cap
-----
-
-Or:
-
-[source,bash]
-----
 $ wget https://github.com/capsiums/cap-story/releases/download/v0.9.0/story_of_claire-0.9.0.cap
 $ capsium reactor serve story_of_claire-0.9.0.cap
 $ open http://localhost:8864
-# => Read the story!#
+# => Read the story!
 ----
 
 == Installation
@@ -94,7 +87,8 @@ reads the package configuration and starts a server that can handle HTTP
 requests according to the routes defined in the package. The reactor verifies
 the package against `security.json` when present and rejects tampered
 packages. Dataset routes are served as JSON; static resources are served with
-`Cache-Control: public, max-age=31536000` (configurable).
+`Cache-Control: public, max-age=31536000` (configurable). While serving, the
+reactor also answers the introspection endpoints described below.
 
 == CLI: Package
 
@@ -129,6 +123,10 @@ capsium package unpack bare-package-0.1.0.cap [-o/--output my_bare_package]
 
 When `-o` is omitted, the package is unpacked into a directory named after
 the `.cap` file.
+
+Extraction is zip-slip safe: entries whose names would escape the
+destination (absolute paths, drive letters, `..` segments) are rejected
+with `Capsium::Packager::UnsafeEntryError`.
 
 === Validating a package
 
@@ -165,7 +163,37 @@ capsium package info|manifest|routes|metadata|storage path-to-package
 capsium reactor serve my_package.cap [--port 8864]
 ----
 
+The reactor takes a local package directory or `.cap` file; serving
+directly from a URL is not supported.
+
+=== Reactor introspection API
+
+While serving, the reactor answers the Monitoring HTTP API
+(ARCHITECTURE.md section 7) as `application/json`:
+
+[source]
+----
+GET /api/v1/introspect/metadata         # => {"packages": [{"name", "version", "author", "description"}]}
+GET /api/v1/introspect/routes           # => {"routes": [{"package", "routes": [{"method", "path"}]}]}
+GET /api/v1/introspect/content-hashes   # => {"contentHashes": [{"package", "hash"}]}
+GET /api/v1/introspect/content-validity # => {"contentValidity": [{"package", "valid", "lastChecked", "reason"?}]}
+----
+
+Non-GET methods on these paths are answered `405 Method Not Allowed`.
+
+`content-hashes` is the SHA-256 of the `.cap` blob when the package was
+served from one. For a directory source there is no blob, so the hash
+covers the canonical (sorted-key) JSON serialization of the package
+content checksums — the same data `security.json` integrityChecks carry.
+
+`content-validity` re-verifies the package against `security.json` on
+every request and reports the outcome with a UTC `lastChecked`
+timestamp; `reason` lists the integrity errors when `valid` is false.
+
 == Programmatically managing packages
+
+The public API below ships with RBS signatures in `sig/`
+(`bundle exec rbs -I sig validate`).
 
 === Loading packages
 
@@ -254,6 +282,15 @@ To run the tests, use the following command:
 [source,bash]
 ----
 bundle exec rspec
+----
+
+The linter and the RBS signature validation are part of the default rake
+task (`bundle exec rake`), or run them individually:
+
+[source,bash]
+----
+bundle exec rubocop
+bundle exec rbs -I sig validate
 ----
 
 == License
