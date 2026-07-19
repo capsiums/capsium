@@ -68,6 +68,8 @@ module Capsium
       def manifest_path = File.join(@path, MANIFEST_FILE)
 
       def security_path = File.join(@path, SECURITY_FILE)
+
+      def authentication_path = File.join(@path, AUTHENTICATION_FILE)
     end
   end
 end

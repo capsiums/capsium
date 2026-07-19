@@ -1,0 +1,71 @@
+module Capsium
+  class Package
+    # The "basicAuth" object of authentication.json (ARCHITECTURE.md
+    # section 4b): Apache-style Basic authentication verified against an
+    # htpasswd file.
+    class BasicAuthConfig
+      attr_accessor enabled: bool
+      attr_accessor passwd_file: String?
+      attr_accessor realm: String
+
+      def initialize: (?enabled: bool enabled, ?passwd_file: String? passwd_file,
+                       ?realm: String? realm) -> void
+
+      def enabled?: () -> bool
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+
+    # The "oauth2" object of authentication.json: an OAuth2
+    # authorization-code flow. The client secret is NEVER read from the
+    # package — it comes from deploy.json or reactor configuration.
+    class OAuth2Config
+      attr_accessor enabled: bool
+      attr_accessor provider: String?
+      attr_accessor client_id: String?
+      attr_accessor authorization_url: String?
+      attr_accessor token_url: String?
+      attr_accessor userinfo_url: String?
+      attr_accessor redirect_path: String
+      attr_accessor scopes: Array[String]
+
+      def initialize: (?enabled: bool enabled, ?provider: String? provider,
+                       ?client_id: String? client_id,
+                       ?authorization_url: String? authorization_url,
+                       ?token_url: String? token_url,
+                       ?userinfo_url: String? userinfo_url,
+                       ?redirect_path: String? redirect_path,
+                       ?scopes: Array[String] scopes) -> void
+
+      def enabled?: () -> bool
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+
+    # The "authentication" object of authentication.json.
+    class AuthenticationData
+      attr_accessor basic_auth: BasicAuthConfig?
+      attr_accessor oauth2: OAuth2Config?
+
+      def initialize: (?basic_auth: BasicAuthConfig? basic_auth,
+                       ?oauth2: OAuth2Config? oauth2) -> void
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+
+    # Canonical authentication.json model (ARCHITECTURE.md section 4b).
+    class AuthenticationConfig
+      attr_accessor authentication: AuthenticationData?
+
+      def initialize: (?authentication: AuthenticationData? authentication) -> void
+
+      def self.from_json: (String json) -> instance
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+  end
+end

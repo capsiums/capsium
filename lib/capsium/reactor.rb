@@ -2,12 +2,18 @@
 
 require "json"
 require "listen"
+require "tmpdir"
 require "webrick"
 
 module Capsium
   class Reactor
+    autoload :Authenticator, "capsium/reactor/authenticator"
+    autoload :Deploy, "capsium/reactor/deploy"
+    autoload :Htpasswd, "capsium/reactor/htpasswd"
     autoload :Introspection, "capsium/reactor/introspection"
+    autoload :OAuth2, "capsium/reactor/oauth2"
     autoload :Serving, "capsium/reactor/serving"
+    autoload :Session, "capsium/reactor/session"
 
     include Serving
 
@@ -15,15 +21,17 @@ module Capsium
     DEFAULT_CACHE_CONTROL = "public, max-age=31536000"
 
     attr_reader :package, :package_path, :routes, :port, :cache_control,
-                :server, :server_thread, :introspection
+                :server, :server_thread, :introspection, :authenticator
 
     def initialize(package:, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
-                   store: nil)
+                   store: nil, deploy: nil)
       @package = package.is_a?(String) ? Package.new(package, store: store) : package
       @package_path = @package.path
+      @store = store
       @port = port
       @cache_control = cache_control
+      @deploy_config = Deploy.load(deploy)
       setup_server(do_not_listen)
       load_state
       mount_routes
@@ -36,14 +44,29 @@ module Capsium
     end
 
     def handle_request(request, response)
+      if @authenticator.endpoint?(request.path)
+        @authenticator.serve_endpoint(request, response)
+        return
+      end
+
+      identity = @authenticator.authenticate(request)
+      return @authenticator.challenge(response) if @authenticator.enabled? && identity.nil?
       return serve_introspection(request, response) if @introspection.endpoint?(request.path)
 
       route = @routes.resolve(request.path)
-      route ? serve_route(route, response) : respond_not_found(response)
+      return respond_not_found(response) unless route
+
+      case @authenticator.authorize(identity, route.access_control)
+      when :unauthenticated then return @authenticator.challenge(response)
+      when :forbidden then return respond_forbidden(response)
+      end
+
+      serve_route(route, response)
     end
 
     def mount_routes
-      paths = @routes.config.routes.map(&:serving_path) + Introspection::PATHS
+      paths = @routes.config.routes.map(&:serving_path) +
+              Introspection::PATHS + @authenticator.endpoints
       paths.each do |path|
         @server.mount_proc(path.to_s) { |req, res| handle_request(req, res) }
       end
@@ -91,7 +114,7 @@ module Capsium
     end
 
     def load_package
-      @package = Package.new(@package_path)
+      @package = Package.new(@package_path, store: @store)
       load_state
     end
 
@@ -99,6 +122,13 @@ module Capsium
       @routes = @package.routes
       @merged_view = @package.merged_view
       @introspection = Introspection.new(@package)
+      @authenticator = Authenticator.new(
+        @package.authentication,
+        deploy: @deploy_config,
+        package_path: @package.path,
+        base_url: @deploy_config.base_url,
+        state_file: File.join(Dir.tmpdir, "capsium-#{@package.name}-session-secret")
+      )
     end
 
     def serve_introspection(request, response)
@@ -110,6 +140,8 @@ module Capsium
     end
 
     def respond_not_found(response) = respond_text(response, 404, "Not Found")
+
+    def respond_forbidden(response) = respond_text(response, 403, "Forbidden")
 
     def respond_not_implemented(response) = respond_text(response, 501, "Not Implemented")
 

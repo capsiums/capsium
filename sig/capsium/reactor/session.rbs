@@ -1,0 +1,36 @@
+module Capsium
+  class Reactor
+    # HMAC-SHA256 signed session cookies (05x-authentication). The
+    # signing secret comes from deploy.json (sessionSecret) or is
+    # generated and persisted reactor-side (never in the package).
+    class Session
+      COOKIE_NAME: String
+      SECRET_BYTES: Integer
+
+      def self.hmac: (String secret, String data) -> String
+
+      # The persisted reactor-side secret: loaded from state_file when
+      # present, generated and written (mode 0600) otherwise.
+      def self.load_or_generate_secret: (String? state_file) -> String
+
+      attr_reader secret: String
+
+      def initialize: (?secret: String? secret, ?state_file: String? state_file) -> void
+
+      # HMAC-SHA256 of data with the session secret (hex).
+      def sign: (String data) -> String
+
+      def encode: (Hash[String, untyped] payload) -> String
+
+      # The verified payload, or nil when the cookie is missing or the
+      # signature does not match.
+      def decode: (String? cookie_value) -> Hash[String, untyped]?
+
+      # The identity for a request's Cookie header, or nil.
+      def identity_from: (untyped request) -> Hash[String, untyped]?
+
+      # A Set-Cookie value establishing the identity session.
+      def cookie_for: (Hash[String, untyped] identity) -> String
+    end
+  end
+end

@@ -1,0 +1,9 @@
+{
+  "name": "auth-package",
+  "version": "0.1.0",
+  "description": "A package with basic authentication and a guarded dataset",
+  "guid": "https://github.com/capsiums/auth-package",
+  "uuid": "3b8f2c1d-4e5a-4f6b-9c7d-8e9f0a1b2c3d",
+  "author": "Ribose Inc.",
+  "license": "MIT"
+}

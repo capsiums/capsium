@@ -1,0 +1,34 @@
+module Capsium
+  class Reactor
+    # Reactor-side deployment configuration (deploy.json): everything
+    # that must NOT ship in the package — OAuth2 client secrets, the
+    # session signing secret, role assignments, an alternate htpasswd
+    # file, the public base URL.
+    class Deploy
+      FILE: String
+      ENV_VAR: String
+
+      attr_reader config: Hash[String, untyped]
+
+      # Loads from an explicit path, an already-parsed Hash, or the
+      # CAPSIUM_DEPLOY environment variable; empty when unconfigured.
+      def self.load: (Hash[String, untyped] | String? source) -> Deploy
+
+      def initialize: (Hash[String, untyped] config) -> void
+
+      def authentication: () -> Hash[String, untyped]
+
+      def base_url: () -> String?
+
+      def client_secret: () -> String?
+
+      def session_secret: () -> String?
+
+      def passwd_file: () -> String?
+
+      # Role assignments keyed by identity name (basic-auth username,
+      # OAuth2 email or subject): {"alice": ["admin", "user"]}.
+      def roles: () -> Hash[String, Array[String]]
+    end
+  end
+end

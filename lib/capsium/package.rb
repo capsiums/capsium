@@ -9,6 +9,10 @@ module Capsium
     autoload :Cipher, "capsium/package/cipher"
     autoload :CircularDependencyError, "capsium/package/dependency_resolver"
     autoload :Composition, "capsium/package/composition"
+    autoload :Authentication, "capsium/package/authentication"
+    autoload :AuthenticationConfig, "capsium/package/authentication_config"
+    autoload :AuthenticationData, "capsium/package/authentication_config"
+    autoload :BasicAuthConfig, "capsium/package/authentication_config"
     autoload :Dataset, "capsium/package/dataset"
     autoload :DatasetConfig, "capsium/package/storage_config"
     autoload :DependencyError, "capsium/package/dependency_resolver"
@@ -25,6 +29,7 @@ module Capsium
     autoload :MergedView, "capsium/package/merged_view"
     autoload :Metadata, "capsium/package/metadata"
     autoload :MetadataData, "capsium/package/metadata_config"
+    autoload :OAuth2Config, "capsium/package/authentication_config"
     autoload :Preparation, "capsium/package/preparation"
     autoload :Repository, "capsium/package/metadata_config"
     autoload :ResolvedDependency, "capsium/package/dependency_resolver"
@@ -53,7 +58,7 @@ module Capsium
     include Preparation
 
     attr_reader :name, :path, :manifest, :metadata, :routes, :storage,
-                :security, :load_type, :resolved_dependencies
+                :security, :load_type, :resolved_dependencies, :authentication
 
     MANIFEST_FILE = "manifest.json"
     METADATA_FILE = "metadata.json"
@@ -61,6 +66,7 @@ module Capsium
     ROUTES_FILE = "routes.json"
     SECURITY_FILE = "security.json"
     SIGNATURE_FILE = "signature.sig"
+    AUTHENTICATION_FILE = "authentication.json"
     CONTENT_DIR = "content"
     DATA_DIR = "data"
 
@@ -100,6 +106,7 @@ module Capsium
       @storage = Storage.new(storage_path)
       @routes = Routes.new(routes_path, @manifest, @storage)
       @security = Security.new(security_path)
+      @authentication = Authentication.new(authentication_path)
     end
 
     def cleanup

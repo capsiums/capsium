@@ -12,13 +12,17 @@ module Capsium
       option :store, type: :string,
                      desc: "Package store directory for dependency " \
                            "resolution (default: CAPSIUM_STORE)"
+      option :deploy, type: :string,
+                      desc: "deploy.json with reactor-side secrets " \
+                            "(default: CAPSIUM_DEPLOY)"
 
       def serve(path_to_package)
         reactor = Capsium::Reactor.new(
           package: path_to_package,
           port: options[:port],
           do_not_listen: options[:do_not_listen],
-          store: options[:store]
+          store: options[:store],
+          deploy: options[:deploy]
         )
         reactor.serve
       ensure

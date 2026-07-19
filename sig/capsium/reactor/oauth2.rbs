@@ -1,0 +1,31 @@
+module Capsium
+  class Reactor
+    # OAuth2 authorization-code flow client (05x-authentication), used by
+    # the Authenticator. Talks to the provider over net/http; the client
+    # secret never comes from the package.
+    class OAuth2
+      # The token exchange or userinfo fetch failed at the provider.
+      class FlowError < Capsium::Error
+      end
+
+      GRANT_TYPE: String
+
+      attr_reader config: Package::OAuth2Config
+
+      def initialize: (Package::OAuth2Config config, client_secret: String client_secret,
+                       session: Session session, ?base_url: String? base_url) -> void
+
+      # The provider URL the login endpoint redirects the browser to.
+      def authorization_url: (untyped request) -> String
+
+      def valid_state?: (String? state) -> bool
+
+      # Exchanges the authorization code and fetches the userinfo
+      # claims. Returns the raw userinfo hash; raises FlowError on
+      # provider errors.
+      def complete: (String? code, untyped request) -> Hash[String, untyped]
+
+      def callback_uri: (untyped request) -> String
+    end
+  end
+end
