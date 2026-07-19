@@ -89,6 +89,10 @@ RSpec.describe Capsium::Packager do
       dotfile_dir = File.join(temporary_package_dir, "content", ".well-known")
       FileUtils.mkdir_p(dotfile_dir)
       File.write(File.join(dotfile_dir, "capsium.txt"), "capsium")
+      # Force manifest + checksum regeneration (fixtures ship committed
+      # manifest.json/security.json that do not know about the dotfile)
+      FileUtils.rm_f(File.join(temporary_package_dir, "manifest.json"))
+      FileUtils.rm_f(File.join(temporary_package_dir, "security.json"))
 
       package = Capsium::Package.new(temporary_package_dir)
       expect(package.manifest.resources).to have_key("content/.well-known/capsium.txt")
@@ -96,7 +100,8 @@ RSpec.describe Capsium::Packager do
       cap_file = described_class.new.pack(package, force: true)
       extract_dir = File.join(tmpdir, "extracted_dotfiles")
       described_class.new.unpack(cap_file, extract_dir)
-      expect(File.read(File.join(extract_dir, "content", ".well-known", "capsium.txt"))).to eq("capsium")
+      extracted = File.join(extract_dir, "content", ".well-known", "capsium.txt")
+      expect(File.read(extracted)).to eq("capsium")
     end
 
     it "ensures the extracted files from an existing .cap match the original files" do
