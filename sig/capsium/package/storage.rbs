@@ -1,0 +1,28 @@
+module Capsium
+  class Package
+    # Loads and writes storage.json and instantiates its datasets
+    # (ARCHITECTURE.md section 5).
+    class Storage
+      attr_reader path: String
+      attr_reader config: StorageConfig
+      attr_reader datasets: Array[Dataset]
+
+      def initialize: (String path) -> void
+
+      def data_sets: () -> Hash[String, DatasetConfig]
+
+      def load_datasets: () -> Array[Dataset]
+
+      def dataset: (String name) -> Dataset?
+
+      def dataset_names: () -> Array[String]
+
+      def empty?: () -> bool
+
+      def save_to_file: (?String output_path) -> void
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+  end
+end

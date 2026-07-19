@@ -1,0 +1,23 @@
+module Capsium
+  # Packs a package directory into a .cap file (generating
+  # security.json) and unpacks .cap files with zip-slip protection.
+  class Packager
+    class FileAlreadyExistsError < StandardError
+    end
+
+    # Raised when a .cap archive contains an entry whose name would be
+    # written outside the destination directory (zip-slip).
+    class UnsafeEntryError < Capsium::Error
+    end
+
+    DRIVE_LETTER_PATTERN: Regexp
+
+    def pack: (Package package, ?Hash[Symbol, untyped] options) -> String
+
+    def unpack: (String cap_file_path, String destination) -> void
+
+    def compress_package: (Package package, String cap_file) -> void
+
+    def relative_path_current: (String absolute_path) -> String
+  end
+end

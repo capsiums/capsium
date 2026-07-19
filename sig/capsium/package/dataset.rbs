@@ -1,0 +1,28 @@
+module Capsium
+  class Package
+    # A loaded dataset. "source"/"schemaFile"/"databaseFile" are
+    # package-relative paths resolved against the package directory.
+    class Dataset
+      attr_reader name: String
+      attr_reader config: DatasetConfig
+      attr_reader data: untyped
+      attr_reader package_path: String
+
+      def initialize: (name: String name, config: DatasetConfig config,
+                       package_path: String package_path) -> void
+
+      def source_path: () -> String
+
+      def schema_path: () -> String?
+
+      def load_data: () -> untyped
+
+      def validate: () -> bool
+
+      # File-existence and schema validations; empty when valid.
+      def validation_errors: () -> Array[String]
+
+      def to_json: (*untyped args) -> String
+    end
+  end
+end

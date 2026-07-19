@@ -1,0 +1,38 @@
+module Capsium
+  class Package
+    # A single manifest resource entry (ARCHITECTURE.md section 3).
+    class Resource
+      VISIBILITIES: Array[String]
+
+      attr_accessor type: String?
+      attr_accessor visibility: String
+      attr_accessor version: String?
+
+      def initialize: (?type: String? type, ?visibility: String? visibility,
+                       ?version: String? version) -> void
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+
+    # Canonical manifest.json model: an object keyed by package-relative
+    # resource path. The legacy array form is normalized on read;
+    # writers emit only the object form.
+    class ManifestConfig
+      attr_accessor resources: Hash[String, Resource]
+
+      def initialize: (?resources: Hash[String, Resource] resources) -> void
+
+      def self.from_json: (String json) -> instance
+
+      def resources_from_json: (ManifestConfig model, untyped value) -> void
+
+      def resources_to_json: (ManifestConfig model, Hash[String, untyped] doc) -> void
+
+      def sort!: () -> ManifestConfig
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+  end
+end

@@ -1,0 +1,65 @@
+module Capsium
+  class Package
+    # Loads, generates and verifies security.json (ARCHITECTURE.md
+    # section 6). Checksums cover every file in the package except
+    # security.json itself.
+    class Security
+      class IntegrityError < Capsium::Error
+      end
+
+      # A file whose SHA-256 does not match the recorded checksum.
+      class ChecksumMismatch
+        attr_reader path: String
+        attr_reader expected: String
+        attr_reader actual: String
+
+        def initialize: (path: String path, expected: String expected, actual: String actual) -> void
+
+        def message: () -> String
+      end
+
+      # A checksum listed for a file that is missing on disk.
+      class MissingFile
+        attr_reader path: String
+        attr_reader expected: String
+
+        def initialize: (path: String path, expected: String expected) -> void
+
+        def message: () -> String
+      end
+
+      # A file on disk not covered by any checksum.
+      class UncheckedFile
+        attr_reader path: String
+
+        def initialize: (path: String path) -> void
+
+        def message: () -> String
+      end
+
+      attr_reader path: String
+      attr_reader config: SecurityConfig?
+
+      def initialize: (String path, ?SecurityConfig? config) -> void
+
+      def self.generate: (String package_path) -> Security
+
+      def self.checksums_for: (String package_path) -> Hash[String, String]
+
+      def self.package_files: (String package_path) -> Array[String]
+
+      def present?: () -> bool
+
+      def checksums: () -> Hash[String, String]
+
+      def verify: (String package_path) -> Array[ChecksumMismatch | MissingFile | UncheckedFile]
+
+      def verify!: (String package_path) -> void
+
+      def save_to_file: (?String output_path) -> void
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+  end
+end

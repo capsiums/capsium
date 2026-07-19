@@ -1,0 +1,53 @@
+module Capsium
+  # A Capsium package loaded from a directory or a .cap file
+  # (ARCHITECTURE.md section 1).
+  class Package
+    MANIFEST_FILE: String
+    METADATA_FILE: String
+    STORAGE_FILE: String
+    ROUTES_FILE: String
+    SECURITY_FILE: String
+    CONTENT_DIR: String
+    DATA_DIR: String
+
+    attr_reader name: String
+    attr_reader path: String
+    attr_reader manifest: Manifest
+    attr_reader metadata: Metadata
+    attr_reader routes: Routes
+    attr_reader storage: Storage
+    attr_reader security: Security
+    attr_reader load_type: Symbol
+
+    def initialize: (String | Pathname path, ?load_type: Symbol? load_type) -> void
+
+    def prepare_package: (Pathname path) -> (String | Pathname)
+
+    def solidify: () -> void
+
+    def decompress_cap_file: (String | Pathname file_path) -> String
+
+    def load_package: () -> void
+
+    # Removes the temporary extraction directory of a .cap-loaded
+    # package; a no-op for directory loads.
+    def cleanup: () -> void
+
+    def datasets: () -> Array[Dataset]
+
+    # The .cap file this package was loaded from, or nil when loaded
+    # from a directory.
+    def cap_file_path: () -> String?
+
+    def content_files: () -> Array[String]
+
+    def determine_load_type: (String | Pathname path) -> Symbol
+
+    # Verifies the package against security.json (ARCHITECTURE.md
+    # section 6). Returns a list of typed errors; empty when no
+    # security.json is present or all checksums match.
+    def verify_integrity: () -> Array[Security::ChecksumMismatch | Security::MissingFile | Security::UncheckedFile]
+
+    def verify_integrity!: () -> void
+  end
+end

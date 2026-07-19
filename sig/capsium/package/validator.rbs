@@ -1,0 +1,29 @@
+module Capsium
+  class Package
+    # Validates a package directory or .cap file against the canonical
+    # schemas (ARCHITECTURE.md sections 2-6) and reports one result per
+    # check. Used by `capsium package validate`.
+    class Validator
+      EXTERNAL_REFERENCE_PATTERN: Regexp
+      TEXT_CONTENT_MIME: Regexp
+
+      # One named validation check with its problems; ok when messages
+      # is empty.
+      class CheckResult
+        attr_reader name: String
+        attr_reader ok: bool
+        attr_reader messages: Array[String]
+
+        def initialize: (name: String name, ok: bool ok, messages: Array[String] messages) -> void
+
+        def ok?: () -> bool
+      end
+
+      def initialize: (String package_path) -> void
+
+      def run: () -> Array[CheckResult]
+
+      def valid?: () -> bool
+    end
+  end
+end

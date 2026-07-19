@@ -1,0 +1,31 @@
+module Capsium
+  class Reactor
+    # Monitoring HTTP API reports for the package this reactor serves
+    # (ARCHITECTURE.md section 7).
+    class Introspection
+      METADATA_PATH: String
+      ROUTES_PATH: String
+      CONTENT_HASHES_PATH: String
+      CONTENT_VALIDITY_PATH: String
+      PATHS: Array[String]
+
+      attr_reader package: Package
+
+      def initialize: (Package package) -> void
+
+      def endpoint?: (String path) -> bool
+
+      # The report body for an introspection endpoint, or nil when the
+      # path is not an introspection endpoint.
+      def report_for: (String path) -> Hash[Symbol, untyped]?
+
+      def metadata_report: () -> Hash[Symbol, untyped]
+
+      def routes_report: () -> Hash[Symbol, untyped]
+
+      def content_hashes_report: () -> Hash[Symbol, untyped]
+
+      def content_validity_report: () -> Hash[Symbol, untyped]
+    end
+  end
+end
