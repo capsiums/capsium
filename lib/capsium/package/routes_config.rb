@@ -61,7 +61,7 @@ module Capsium
         manifest.type_for(resource)
       end
 
-      def validate_target(package_path, storage)
+      def validate_target(package_path, storage, merged_view: nil)
         return if handler_route?
 
         if dataset_route?
@@ -69,14 +69,19 @@ module Capsium
 
           raise Error, "Route dataset does not exist: #{dataset}"
         end
-        validate_resource_target(package_path)
+        validate_resource_target(package_path, merged_view)
       end
 
       private
 
-      def validate_resource_target(package_path)
-        target_path = fs_path(package_path)
-        return if target_path && File.exist?(target_path)
+      def validate_resource_target(package_path, merged_view)
+        found = if merged_view
+                  merged_view.resolve(resource)
+                else
+                  target_path = fs_path(package_path)
+                  target_path && File.exist?(target_path)
+                end
+        return if found
 
         raise Error, "Route resource does not exist: #{resource}"
       end

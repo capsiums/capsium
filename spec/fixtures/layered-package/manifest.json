@@ -1,0 +1,9 @@
+{
+  "resources": {
+    "content/base-only.txt": { "type": "text/plain", "visibility": "exported" },
+    "content/extra.js": { "type": "text/javascript", "visibility": "exported" },
+    "content/index.html": { "type": "text/html", "visibility": "exported" },
+    "content/local.txt": { "type": "text/plain", "visibility": "private" },
+    "content/shared.css": { "type": "text/css", "visibility": "exported" }
+  }
+}

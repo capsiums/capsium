@@ -89,4 +89,40 @@ RSpec.describe Capsium::Package::Storage do
       )
     end
   end
+
+  describe "storage.layers (ARCHITECTURE.md section 5a)" do
+    let(:layered_fixture) do
+      File.expand_path(File.join(__dir__, "..", "..", "fixtures",
+                                 "layered-package", "storage.json"))
+    end
+    let(:layered_storage) { described_class.new(layered_fixture) }
+
+    it "parses layers in declaration order, bottom -> top" do
+      layers = layered_storage.config.layers
+      expect(layers.map(&:path)).to eq(%w[base updates])
+      expect(layers.map(&:writable)).to eq([false, true])
+      expect(layers.map(&:visibility)).to eq(%w[exported private])
+    end
+
+    it "marks private layers" do
+      layers = layered_storage.config.layers
+      expect(layers.map(&:private?)).to eq([false, true])
+    end
+
+    it "round-trips layers to JSON" do
+      expect(JSON.parse(layered_storage.to_json)).to eq(
+        "storage" => {
+          "dataSets" => {},
+          "layers" => [
+            { "path" => "base", "writable" => false, "visibility" => "exported" },
+            { "path" => "updates", "writable" => true, "visibility" => "private" }
+          ]
+        }
+      )
+    end
+
+    it "defaults to no layers for packages without a layers config" do
+      expect(storage.config.layers).to eq([])
+    end
+  end
 end

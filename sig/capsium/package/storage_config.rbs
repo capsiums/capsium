@@ -1,5 +1,23 @@
 module Capsium
   class Package
+    # A single storage layer entry (ARCHITECTURE.md section 5a): a
+    # package-relative directory mirroring the content/ tree. Layers are
+    # stacked bottom -> top in declaration order; "visibility: private"
+    # layers are hidden from dependent packages.
+    class LayerConfig
+      attr_accessor path: String?
+      attr_accessor writable: bool
+      attr_accessor visibility: String
+
+      def initialize: (?path: String? path, ?writable: bool writable,
+                       ?visibility: String? visibility) -> void
+
+      def private?: () -> bool
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+
     # A single dataset entry (ARCHITECTURE.md section 5): schema-backed
     # file (via "source") or SQLite ("databaseFile" + "table").
     class DatasetConfig
@@ -29,11 +47,13 @@ module Capsium
       def to_hash: () -> Hash[String, untyped]
     end
 
-    # The "storage" object holding the dataSets map.
+    # The "storage" object holding the dataSets map and the layers stack.
     class StorageData
       attr_accessor data_sets: Hash[String, DatasetConfig]
+      attr_accessor layers: Array[LayerConfig]
 
-      def initialize: (?data_sets: Hash[String, DatasetConfig] data_sets) -> void
+      def initialize: (?data_sets: Hash[String, DatasetConfig] data_sets,
+                       ?layers: Array[LayerConfig] layers) -> void
 
       def data_sets_from_json: (StorageData model, untyped value) -> void
 
@@ -53,6 +73,10 @@ module Capsium
       def self.from_json: (String json) -> instance
 
       def data_sets: () -> Hash[String, DatasetConfig]
+
+      # The configured storage layers, bottom -> top (empty when the
+      # package uses the single implicit content/ layer).
+      def layers: () -> Array[LayerConfig]
 
       def to_json: (*untyped args) -> String
       def to_hash: () -> Hash[String, untyped]

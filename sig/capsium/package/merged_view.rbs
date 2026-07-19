@@ -1,0 +1,40 @@
+module Capsium
+  class Package
+    # The merged (overlay) view of a package's content, per ARCHITECTURE.md
+    # section 5a. Shared by Package (validation) and Reactor (serving).
+    class MergedView
+      # A single read layer: an absolute root directory mirroring the
+      # content/ tree, plus its parsed tombstone set.
+      class Layer
+        def self.new: (String root, String visibility, Set[String] tombstones) -> void
+
+        def file?: (String content_relative_path) -> bool
+
+        def absolute: (String content_relative_path) -> String
+
+        def root: () -> String
+
+        def visibility: () -> String
+
+        def tombstones: () -> Set[String]
+      end
+
+      TOMBSTONE_FILE: String
+      CONTENT_PREFIX: String
+
+      attr_reader package_path: String
+      attr_reader layers: Array[Layer]
+      attr_reader dependency_views: Array[MergedView]
+
+      def initialize: (String package_path, storage: Storage storage,
+                       manifest: Manifest manifest,
+                       ?dependency_views: Array[MergedView] dependency_views,
+                       ?exported_only: bool exported_only) -> void
+
+      # The absolute filesystem path serving a package-relative content
+      # path ("content/app.js"), or nil when no layer provides it or it is
+      # tombstoned. Non-content paths never resolve through the view.
+      def resolve: (String? relative_path) -> String?
+    end
+  end
+end

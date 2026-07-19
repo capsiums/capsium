@@ -49,12 +49,34 @@ module Capsium
       end
     end
 
-    # The "storage" object holding the dataSets map.
+    # A single storage layer entry (ARCHITECTURE.md section 5a). "path" is
+    # a package-relative directory mirroring the content/ tree; layers are
+    # stacked bottom -> top in declaration order. "visibility: private"
+    # layers are hidden from dependent packages.
+    class LayerConfig < Lutaml::Model::Serializable
+      attribute :path, :string
+      attribute :writable, :boolean, default: false
+      attribute :visibility, :string, values: Resource::VISIBILITIES, default: "exported"
+
+      json do
+        map :path, to: :path
+        map :writable, to: :writable
+        map :visibility, to: :visibility
+      end
+
+      def private?
+        visibility == "private"
+      end
+    end
+
+    # The "storage" object holding the dataSets map and the layers stack.
     class StorageData < Lutaml::Model::Serializable
       attribute :data_sets, :hash, default: {}
+      attribute :layers, LayerConfig, collection: true, default: []
 
       json do
         map "dataSets", with: { from: :data_sets_from_json, to: :data_sets_to_json }
+        map :layers, to: :layers
       end
 
       def data_sets_from_json(model, value)
@@ -100,6 +122,12 @@ module Capsium
 
       def data_sets
         storage ? storage.data_sets : {}
+      end
+
+      # The configured storage layers, bottom -> top (empty when the
+      # package uses the single implicit content/ layer).
+      def layers
+        storage ? storage.layers : []
       end
     end
   end

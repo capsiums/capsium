@@ -93,6 +93,7 @@ module Capsium
 
     def load_state
       @routes = @package.routes
+      @merged_view = @package.merged_view
       @introspection = Introspection.new(@package)
     end
 
@@ -113,8 +114,8 @@ module Capsium
     end
 
     def serve_file(route, response)
-      content_path = route.fs_path(@package.path)
-      if content_path && File.exist?(content_path)
+      content_path = @merged_view.resolve(route.resource)
+      if content_path
         response.status = 200
         response["Content-Type"] = route.mime(@package.manifest) || "application/octet-stream"
         headers_for(route).each { |name, value| response[name] = value }

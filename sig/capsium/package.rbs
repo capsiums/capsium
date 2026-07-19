@@ -2,6 +2,8 @@ module Capsium
   # A Capsium package loaded from a directory or a .cap file
   # (ARCHITECTURE.md section 1).
   class Package
+    include Verification
+
     MANIFEST_FILE: String
     METADATA_FILE: String
     STORAGE_FILE: String
@@ -41,6 +43,12 @@ module Capsium
 
     def datasets: () -> Array[Dataset]
 
+    # The merged content view across the package's storage layers
+    # (ARCHITECTURE.md section 5a). With exported_only: true, private
+    # layers and non-exported resources are hidden — the view a dependent
+    # package gets of this package (section 4a).
+    def merged_view: (?exported_only: bool exported_only) -> MergedView
+
     # The .cap file this package was loaded from, or nil when loaded
     # from a directory.
     def cap_file_path: () -> String?
@@ -48,22 +56,5 @@ module Capsium
     def content_files: () -> Array[String]
 
     def determine_load_type: (String | Pathname path) -> Symbol
-
-    # Verifies the package against security.json (ARCHITECTURE.md
-    # section 6). Returns a list of typed errors; empty when no
-    # security.json is present or all checksums match.
-    def verify_integrity: () -> Array[Security::ChecksumMismatch | Security::MissingFile | Security::UncheckedFile]
-
-    def verify_integrity!: () -> void
-
-    # Whether security.json declares a digital signature for this package.
-    def signed?: () -> bool
-
-    # Verifies the declared digital signature (RSA-SHA256) against the
-    # checksum-covered payload. True when the package is unsigned or the
-    # signature verifies; false on mismatch.
-    def verify_signature: () -> bool
-
-    def verify_signature!: () -> void
   end
 end
