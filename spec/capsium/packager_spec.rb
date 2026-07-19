@@ -3,6 +3,7 @@
 require "spec_helper"
 require "fileutils"
 require "tmpdir"
+require "zip"
 
 RSpec.describe Capsium::Packager do
   let(:fixtures_path) { File.expand_path(File.join(__dir__, "..", "fixtures")) }
@@ -127,5 +128,76 @@ RSpec.describe Capsium::Packager do
       "data/animals_schema.yaml",
       "storage.json"
     ]
+  end
+
+  describe "#unpack zip-slip protection" do
+    let(:extract_dir) { File.join(tmpdir, "extracted") }
+
+    # Builds a .cap whose entries rubyzip accepts on write ("..", drive
+    # letters) but that escape the destination on extraction.
+    def build_cap(path, entry_names)
+      payload = File.join(File.dirname(path), "payload.txt")
+      File.write(payload, "pwned")
+      Zip::File.open(path, Zip::File::CREATE) do |zipfile|
+        entry_names.each { |name| zipfile.add(name, payload) }
+      end
+      path
+    end
+
+    # rubyzip refuses to *create* entries with absolute names but happily
+    # reads them back, so patch a placeholder into the archive (same byte
+    # length, present in the local and central directory headers).
+    def build_absolute_cap(path)
+      cap = build_cap(path, ["Aabsolute.txt"])
+      File.binwrite(cap, File.binread(cap).gsub("Aabsolute.txt", "/absolute.txt"))
+      cap
+    end
+
+    it "rejects entries with .. segments escaping the destination" do
+      cap = build_cap(File.join(tmpdir, "dotdot.cap"), ["../evil.txt"])
+
+      expect { described_class.new.unpack(cap, extract_dir) }
+        .to raise_error(Capsium::Packager::UnsafeEntryError, /evil\.txt/)
+      expect(File).not_to exist(File.join(tmpdir, "evil.txt"))
+    end
+
+    it "rejects nested entries that resolve outside the destination" do
+      cap = build_cap(File.join(tmpdir, "nested.cap"),
+                      ["sub/../../escaped.txt"])
+
+      expect { described_class.new.unpack(cap, extract_dir) }
+        .to raise_error(Capsium::Packager::UnsafeEntryError, /escaped\.txt/)
+      expect(File).not_to exist(File.join(tmpdir, "escaped.txt"))
+    end
+
+    it "rejects absolute entry names" do
+      cap = build_absolute_cap(File.join(tmpdir, "absolute.cap"))
+
+      expect { described_class.new.unpack(cap, extract_dir) }
+        .to raise_error(Capsium::Packager::UnsafeEntryError, %r{/absolute\.txt})
+    end
+
+    it "rejects drive-letter entry names" do
+      cap = build_cap(File.join(tmpdir, "drive.cap"), ["C:/drive.txt"])
+
+      expect { described_class.new.unpack(cap, extract_dir) }
+        .to raise_error(Capsium::Packager::UnsafeEntryError, /drive\.txt/)
+    end
+
+    it "rejects an unsafe .cap when loading it as a package" do
+      cap = build_cap(File.join(tmpdir, "package.cap"), ["../evil.txt"])
+
+      expect { Capsium::Package.new(cap) }
+        .to raise_error(Capsium::Packager::UnsafeEntryError)
+    end
+
+    it "still extracts safe entries from a mixed archive before the unsafe one" do
+      cap = build_cap(File.join(tmpdir, "mixed.cap"),
+                      ["content/index.html", "../evil.txt"])
+
+      expect { described_class.new.unpack(cap, extract_dir) }
+        .to raise_error(Capsium::Packager::UnsafeEntryError)
+      expect(File).not_to exist(File.join(tmpdir, "evil.txt"))
+    end
   end
 end
