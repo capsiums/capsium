@@ -1,0 +1,83 @@
+module Capsium
+  # A static package registry (directory or https base URL with an
+  # index.json): Capsium::Registry::Local (read-write) and
+  # Capsium::Registry::Remote (read-only). See lib/capsium/registry.rb.
+  class Registry
+    INDEX_FILE: String
+    ENV_VAR: String
+
+    # Base error for every registry failure.
+    class RegistryError < Capsium::Error
+    end
+
+    # No registry reference was given (neither flag nor CAPSIUM_REGISTRY).
+    class RegistryNotConfiguredError < RegistryError
+    end
+
+    # The registry itself is unusable (bad path or URL, unreadable index).
+    class InvalidRegistryError < RegistryError
+    end
+
+    # A .cap offered to push failed package validation.
+    class InvalidPackageError < RegistryError
+    end
+
+    # The index has no entry for the requested package GUID.
+    class PackageNotFoundError < RegistryError
+    end
+
+    # The registry has the GUID but no version satisfies the constraint.
+    class UnsatisfiableConstraintError < RegistryError
+    end
+
+    # A fetched .cap does not match the sha256 declared in the index.
+    class ChecksumMismatchError < RegistryError
+    end
+
+    # A registry file could not be retrieved (network or HTTP failure).
+    class FetchError < RegistryError
+    end
+
+    # One indexed version of a registry package.
+    class Entry
+      def self.new: (guid: String, name: String, version: Package::Version,
+                     file: String, sha256: String, size: Integer) -> void
+
+      def guid: () -> String
+      def name: () -> String
+      def version: () -> Package::Version
+      def file: () -> String
+      def sha256: () -> String
+      def size: () -> Integer
+
+      # The canonical store file name for this entry's .cap.
+      def cap_file_name: () -> String
+    end
+
+    # The registry at the given reference: a Local directory or a Remote
+    # http(s) base URL. Raises RegistryNotConfiguredError when no
+    # reference is given.
+    def self.fetch: (String? ref) -> Registry
+
+    # The registry named by the CAPSIUM_REGISTRY environment variable,
+    # or nil when unset.
+    def self.default: () -> Registry?
+
+    def initialize: () -> void
+
+    # Where this registry lives (directory path or base URL).
+    def location: () -> String
+
+    # The newest indexed version of the package GUID satisfying the
+    # semver constraint.
+    def resolve: (String guid, ?String constraint) -> Entry
+
+    # Resolves, fetches, checksum-verifies and installs the newest
+    # satisfying .cap into the package store, returning the store path.
+    def install: (String guid, ?String constraint,
+                  store: (Package::Store | String) store) -> String
+
+    # Only Local registries are writable.
+    def push: (String cap_path) -> Entry
+  end
+end

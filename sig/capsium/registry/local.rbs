@@ -1,0 +1,16 @@
+module Capsium
+  class Registry
+    # A static registry in a local directory (read-write).
+    class Local < Registry
+      attr_reader dir: String
+
+      def initialize: (String dir) -> void
+
+      def location: () -> String
+
+      # Validates cap_path, copies it into the registry and records it
+      # in index.json. Returns the recorded Entry.
+      def push: (String cap_path) -> Entry
+    end
+  end
+end

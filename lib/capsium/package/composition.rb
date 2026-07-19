@@ -9,21 +9,23 @@ module Capsium
       private
 
       # Resolves metadata.dependencies against the package store (the
-      # `store` argument, else CAPSIUM_STORE). Each resolved dependency
-      # loads recursively with an extended circularity chain; its
-      # exported content becomes lower read-only layers of this
-      # package's merged view.
-      def resolve_dependencies(store, chain)
+      # `store` argument, else CAPSIUM_STORE), with the given `registry`
+      # (else CAPSIUM_REGISTRY) as install fallback for store misses.
+      # Each resolved dependency loads recursively with an extended
+      # circularity chain; its exported content becomes lower read-only
+      # layers of this package's merged view.
+      def resolve_dependencies(store, registry, chain)
         declared = @metadata.dependencies
         return [] if declared.empty?
 
-        resolver = DependencyResolver.new(store || Store.default)
+        resolver = DependencyResolver.new(store || Store.default, registry: registry)
         chain += [@metadata.guid]
         declared.map do |guid, range|
           cap_path = resolver.resolve_path(guid, range, chain: chain)
           ResolvedDependency.new(
             guid: guid, range: range, path: cap_path,
             package: Package.new(cap_path, store: resolver.store,
+                                           registry: resolver.registry,
                                            dependency_chain: chain)
           )
         end

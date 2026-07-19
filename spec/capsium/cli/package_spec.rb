@@ -264,6 +264,42 @@ RSpec.describe Capsium::Cli::Package do
     end
   end
 
+  describe "push" do
+    it "pushes a .cap into a registry directory" do
+      Dir.mktmpdir do |dir|
+        registry_dir = File.join(dir, "registry")
+        output = capture_stdout do
+          described_class.start(
+            ["push", File.join(fixtures_path, "bare-package-0.1.0.cap"),
+             "--registry", registry_dir]
+          )
+        end
+        expect(output).to include("Pushed bare-package 0.1.0")
+        expect(File).to exist(File.join(registry_dir, "index.json"))
+        expect(File).to exist(File.join(registry_dir, "bare-package-0.1.0.cap"))
+      end
+    end
+
+    it "exits nonzero without a registry" do
+      status = capture_exit_status do
+        described_class.start(["push", File.join(fixtures_path, "bare-package-0.1.0.cap")])
+      end
+      expect(status).to eq(1)
+    end
+
+    it "exits nonzero for an invalid package" do
+      Dir.mktmpdir do |dir|
+        status = capture_exit_status do
+          described_class.start(
+            ["push", File.join(dir, "missing.cap"),
+             "--registry", File.join(dir, "registry")]
+          )
+        end
+        expect(status).to eq(1)
+      end
+    end
+  end
+
   def capture_stdout
     original = $stdout
     $stdout = StringIO.new

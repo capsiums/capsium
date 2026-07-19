@@ -331,13 +331,17 @@ with status 1 when any test fails (or a test definition is invalid).
 [source,bash]
 ----
 capsium reactor serve my_package.cap [--port 8864] [--store DIR] [--deploy deploy.json]
+capsium reactor serve capsium://example.com/story [--registry DIR_OR_URL] [--store DIR] [--constraint ">=1.0"]
 ----
 
-The reactor takes a local package directory or `.cap` file; serving
-directly from a URL is not supported. `--store` (or `CAPSIUM_STORE`)
+The reactor takes a local package directory or `.cap` file, or a
+`capsium://` GUID which is installed from a registry first (see
+"Static registries" below). `--store` (or `CAPSIUM_STORE`)
 resolves composite-package dependencies; `--deploy` (or
 `CAPSIUM_DEPLOY`) points at the reactor-side `deploy.json` with
-authentication secrets (see "Authentication" below).
+authentication secrets (see "Authentication" below); `--registry`
+(or `CAPSIUM_REGISTRY`) supplies the registry for `capsium://` GUIDs
+and for dependency fallback.
 
 === Reactor introspection API
 
@@ -414,6 +418,65 @@ circular, missing or unsatisfiable dependencies.
 capsium package info my-composite-package --store ./store
 capsium reactor serve my-composite-package --store ./store
 ----
+
+== Static registries
+
+A *registry* is a directory or a static https base URL holding an
+`index.json` plus `.cap` files stored relative to the registry root,
+so any static host (GitHub Pages, S3, nginx) can serve one:
+
+[source,json]
+----
+{
+  "packages": {
+    "https://github.com/capsiums/cap-story": {
+      "name": "story-of-claire",
+      "versions": {
+        "1.0.0": {
+          "file": "story-of-claire-1.0.0.cap",
+          "sha256": "<hex sha256 of the .cap>",
+          "size": 642047
+        }
+      }
+    }
+  }
+}
+----
+
+`Capsium::Registry.fetch(ref)` returns the implementation for a
+reference: `Registry::Local` for a directory (read-write) or
+`Registry::Remote` for an https base URL (read-only; plain http is
+accepted for loopback hosts only). Both resolve a GUID to the newest
+version satisfying a semver constraint and install it: the `.cap` is
+fetched, verified against the sha256 declared in the index
+(`Registry::ChecksumMismatchError` on mismatch) and recorded in the
+package store as `<name>-<version>.cap` with an updated store
+`index.json`. Failures are typed (`RegistryError` subclasses):
+`RegistryNotConfiguredError`, `InvalidRegistryError`,
+`InvalidPackageError`, `PackageNotFoundError`,
+`UnsatisfiableConstraintError`, `ChecksumMismatchError`, `FetchError`.
+
+[source,bash]
+----
+# Validate a .cap, copy it into a registry directory and record it in
+# index.json (atomically rewritten; sha256+size recomputed):
+capsium package push story-of-claire-1.0.0.cap --registry ./registry
+
+# Resolve, download, sha256-verify and install into the package store:
+capsium install https://github.com/capsiums/cap-story \
+  [--constraint ">=1.0"] [--registry DIR_OR_URL] [--store DIR]
+
+# Install-then-serve a capsium:// GUID:
+capsium reactor serve capsium://example.com/story \
+  [--registry DIR_OR_URL] [--store DIR] [--constraint ">=1.0"]
+----
+
+The registry comes from `--registry` or `CAPSIUM_REGISTRY` (a typed
+error when neither is set); the store from `--store` or
+`CAPSIUM_STORE`. Composite-package dependency resolution uses the same
+fallback chain: when the store has no package for a dependency GUID,
+the resolver installs it from the configured registry into the store
+(store -> registry -> typed error).
 
 == Authentication
 

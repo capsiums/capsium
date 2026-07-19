@@ -35,14 +35,18 @@ module Capsium
     end
 
     # Orchestrates metadata.dependencies resolution against a package
-    # store: circularity checks plus store lookup.
+    # store: circularity checks plus store lookup, with a registry as
+    # install fallback for store misses.
     class DependencyResolver
       attr_reader store: Store
+      attr_reader registry: Capsium::Registry?
 
-      def initialize: (Store | String? store) -> void
+      def initialize: (Store | String? store,
+                       ?registry: (Capsium::Registry | String)? registry) -> void
 
-      # The newest store .cap satisfying the dependency, raising typed
-      # errors for circular, missing or unsatisfiable dependencies.
+      # The newest store .cap satisfying the dependency, installing from
+      # the configured registry on a store miss and raising typed errors
+      # for circular, missing or unsatisfiable dependencies.
       def resolve_path: (String guid, String range, chain: Array[String] chain) -> String
     end
   end

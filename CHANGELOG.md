@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+
+- Static registries (ARCHITECTURE.md section 4a follow-on): a registry
+  is a directory or a static https base URL holding an `index.json`
+  (`packages` -> GUID -> `name` + `versions` -> version -> `file`,
+  `sha256`, `size`) with `.cap` files stored relative to the registry
+  root, so any static host (GitHub Pages, S3, nginx) can serve one.
+  `Capsium::Registry.fetch(ref)` returns `Registry::Local` (read-write
+  directory) or `Registry::Remote` (read-only https base URL over
+  net/http with redirect following and timeouts; plain http for
+  loopback hosts only). `Registry#resolve` picks the newest version
+  satisfying a semver constraint via the built-in
+  `Version`/`VersionRange` matcher.
+- `Registry::Local#push`: validates the `.cap` with
+  `Capsium::Package::Validator` (`Registry::InvalidPackageError` on
+  failure), copies it into the registry directory and atomically
+  rewrites `index.json` (tmp + rename) with recomputed sha256 and size.
+- `Registry#install`: fetches the resolved `.cap`, verifies it against
+  the sha256 declared in the index (`Registry::ChecksumMismatchError`
+  on mismatch) and installs it into the package store as
+  `<name>-<version>.cap`, atomically updating the store's own
+  `index.json` (`Package::Store#install`). All registry failures are
+  typed `Registry::RegistryError` subclasses
+  (`RegistryNotConfiguredError`, `InvalidRegistryError`,
+  `InvalidPackageError`, `PackageNotFoundError`,
+  `UnsatisfiableConstraintError`, `ChecksumMismatchError`,
+  `FetchError`).
+- `capsium package push PACKAGE --registry DIR` and
+  `capsium install GUID [--constraint RANGE] [--registry DIR_OR_URL]
+  [--store DIR]`; the registry defaults to `CAPSIUM_REGISTRY`, the
+  store to `CAPSIUM_STORE` (typed errors when unconfigured).
+- `capsium reactor serve capsium://GUID` (install-then-serve with
+  `--registry`/`--store`/`--constraint`), and dependency-resolution
+  fallback for composite packages: `Package::DependencyResolver` (and
+  `Capsium::Package.new`/`Capsium::Reactor.new` through their new
+  `registry:` keyword) installs a dependency from the configured
+  registry when the store has no package for its GUID — fallback chain
+  store -> registry -> typed error (`DependencyNotFoundError` /
+  `UnsatisfiableDependencyError`).
+
 ## 0.3.0
 
 ### Added

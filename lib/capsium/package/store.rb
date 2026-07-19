@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require "json"
 require "zip"
 
@@ -63,7 +64,33 @@ module Capsium
         end
       end
 
+      # Installs the .cap at source_path into the store as file_name
+      # (conventionally "<name>-<version>.cap"), records guid ->
+      # file_name in index.json (atomically, tmp + rename) and returns
+      # the installed path. Used by registry installs
+      # (Capsium::Registry#install).
+      def install(source_path, guid:, file_name:)
+        destination = File.join(@dir, file_name)
+        tmp = "#{destination}.tmp-#{Process.pid}"
+        FileUtils.cp(source_path, tmp)
+        File.rename(tmp, destination)
+        record_index(guid, file_name)
+        destination
+      end
+
       private
+
+      # Records guid -> file_name in the store's index.json and drops
+      # the memoized catalog so the new .cap is found.
+      def record_index(guid, file_name)
+        index = load_index.merge(guid => file_name)
+        path = File.join(@dir, INDEX_FILE)
+        tmp = "#{path}.tmp-#{Process.pid}"
+        File.write(tmp, JSON.pretty_generate(index))
+        File.rename(tmp, path)
+        @load_index = index
+        @catalog = nil
+      end
 
       def indexed_path(guid)
         file = load_index[guid]

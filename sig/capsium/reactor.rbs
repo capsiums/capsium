@@ -22,7 +22,8 @@ module Capsium
                      ?cache_control: String? cache_control,
                      ?do_not_listen: bool do_not_listen,
                      ?store: (Package::Store | String)? store,
-                     ?deploy: (Hash[String, untyped] | String)? deploy) -> void
+                     ?deploy: (Hash[String, untyped] | String)? deploy,
+                     ?registry: (Capsium::Registry | String)? registry) -> void
 
     def serve: () -> untyped
 
