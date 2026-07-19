@@ -3,49 +3,54 @@
 require "forwardable"
 require "marcel"
 require "pathname"
-require "shale"
 
 module Capsium
   class Package
     class Manifest
       extend Forwardable
 
-      attr_accessor :path, :content_path, :config
+      attr_reader :path, :content_path, :config
 
-      def_delegators :@config, :to_json, :to_hash
+      def_delegators :@config, :to_hash
 
       def initialize(path)
         @path = path
         @content_path = File.join(File.dirname(@path), Package::CONTENT_DIR)
-
         @config = if File.exist?(path)
                     ManifestConfig.from_json(File.read(path))
                   else
-                    ManifestConfig.new(content: generate_manifest)
+                    ManifestConfig.new(resources: generate_manifest)
                   end
       end
 
+      # Auto-generation (ARCHITECTURE.md section 3): scan content/
+      # recursively, detect MIME types, default visibility "exported",
+      # deterministic (sorted) output.
       def generate_manifest
-        files = Dir[File.join(@content_path, "**", "*")].reject do |f|
-          File.directory?(f)
-        end
-
-        files.sort.map do |file_path|
-          ManifestConfigItem.new(
-            file: relative_path(file_path),
-            mime: mime_from_path(file_path)
-          )
+        content_files.sort.to_h do |file_path|
+          [relative_path(file_path),
+           Resource.new(type: mime_from_path(file_path), visibility: "exported")]
         end
       end
 
-      def lookup(filename)
-        @config.content.detect do |data_item|
-          data_item.file == filename
-        end
+      def resources
+        @config.resources
+      end
+
+      def lookup(path)
+        resources[path]
+      end
+
+      def type_for(path)
+        resource = lookup(path)
+        resource&.type
+      end
+
+      def to_json(*_args)
+        @config.to_json
       end
 
       def save_to_file(output_path = @path)
-        @config.content.sort_by!(&:file)
         File.write(output_path, to_json)
       end
 
@@ -64,6 +69,12 @@ module Capsium
       end
 
       private
+
+      def content_files
+        Dir.glob(File.join(@content_path, "**", "*")).select do |file|
+          File.file?(file)
+        end
+      end
 
       def mime_from_path(path)
         Marcel::MimeType.for(

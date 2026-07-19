@@ -15,9 +15,13 @@ RSpec.describe Capsium do
     expect(Capsium::Package).to be_a(Class)
     expect(Capsium::Packager).to be_a(Class)
     expect(Capsium::Reactor).to be_a(Class)
-    expect(Capsium::Protector).to be_a(Class)
     expect(Capsium::Cli).to be_a(Class)
     expect(Capsium::Converters::Jekyll).to be_a(Class)
+  end
+
+  it "does not autoload the deleted Protector" do
+    expect(Capsium.autoload?(:Protector)).to be_nil
+    expect(defined?(Capsium::Protector)).to be_nil
   end
 
   it "resolves the package-internal constants through autoload" do
@@ -26,5 +30,7 @@ RSpec.describe Capsium do
     expect(Capsium::Package::Routes).to be_a(Class)
     expect(Capsium::Package::Storage).to be_a(Class)
     expect(Capsium::Package::Dataset).to be_a(Class)
+    expect(Capsium::Package::Security).to be_a(Class)
+    expect(Capsium::Package::Validator).to be_a(Class)
   end
 end

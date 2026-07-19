@@ -1,0 +1,44 @@
+type: object
+properties:
+  categories:
+    type: array
+    items:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - name
+  animals:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        habitat:
+          type: string
+        diet:
+          type: string
+        lifespan:
+          type: string
+        conservation_status:
+          type: string
+        category_id:
+          type: integer
+      required:
+        - name
+        - type
+        - habitat
+        - diet
+        - lifespan
+        - conservation_status
+        - category_id
+required:
+  - categories
+  - animals

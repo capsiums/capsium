@@ -1,72 +1,148 @@
 # frozen_string_literal: true
 
-require "shale"
+require "json"
+require "lutaml/model"
 
 module Capsium
   class Package
-    class RouteTarget < Shale::Mapper
-      attribute :file, Shale::Type::String
-      attribute :dataset, Shale::Type::String
+    # A single route entry (ARCHITECTURE.md section 4). Kinds are
+    # discriminated by key, MECE:
+    # - {path, resource, headers?, visibility?} -- static file
+    # - {path, dataset, accessControl?}        -- dataset route
+    # - {path, method, handler, ...}           -- dynamic handler (parsed,
+    #   accepted-and-ignored; reactors respond 501)
+    class Route < Lutaml::Model::Serializable
+      DATASET_PATH_PREFIX = "/api/v1/data/"
 
-      def fs_path(manifest)
-        return unless file
+      attribute :path, :string
+      attribute :resource, :string
+      attribute :headers, :hash
+      attribute :headers_file, :string
+      attribute :visibility, :string, values: Resource::VISIBILITIES
+      attribute :dataset, :string
+      attribute :access_control, :hash
+      attribute :http_method, :string
+      attribute :handler, :string
 
-        manifest.path_to_content_file(manifest.lookup(file)&.file)
+      json do
+        map :path, to: :path
+        map :resource, to: :resource
+        map :headers, to: :headers
+        map "headersFile", to: :headers_file
+        map :visibility, to: :visibility
+        map :dataset, to: :dataset
+        map "accessControl", to: :access_control
+        map "method", to: :http_method
+        map :handler, to: :handler
+      end
+
+      def kind
+        return :resource if resource
+        return :dataset if dataset
+
+        :handler
+      end
+
+      def dataset_route?
+        kind == :dataset
+      end
+
+      def handler_route?
+        kind == :handler
+      end
+
+      def fs_path(package_path)
+        return unless resource
+
+        File.join(package_path, resource)
       end
 
       def mime(manifest)
-        manifest.lookup(file)&.mime
+        manifest.type_for(resource)
       end
 
-      def validate(manifest, storage)
-        if file
-          target_path = fs_path(manifest)
-          in_content_dir = target_path.to_s.start_with?(manifest.content_path.to_s)
-          unless target_path && File.exist?(target_path) && in_content_dir
-            raise "Route target does not exist or is outside of the content " \
-                  "directory: #{target_path}"
-          end
-        elsif dataset
-          raise "Dataset target does not exist: #{dataset}" unless storage.dataset(dataset)
-        else
-          raise "Route target must have either a file or a dataset"
+      def validate_target(package_path, storage)
+        return if handler_route?
+
+        if dataset_route?
+          return if storage.dataset(dataset)
+
+          raise Error, "Route dataset does not exist: #{dataset}"
+        end
+        validate_resource_target(package_path)
+      end
+
+      private
+
+      def validate_resource_target(package_path)
+        target_path = fs_path(package_path)
+        return if target_path && File.exist?(target_path)
+
+        raise Error, "Route resource does not exist: #{resource}"
+      end
+    end
+
+    # Canonical routes.json model: optional top-level "index" plus a
+    # "routes" array. The legacy gem form ({path, target: {file|dataset}})
+    # is accepted on read and normalized; writers emit only the canonical
+    # form.
+    class RoutesConfig < Lutaml::Model::Serializable
+      attribute :index, :string
+      attribute :routes, Route, collection: true, default: []
+
+      json do
+        map :index, to: :index
+        map :routes, with: { from: :routes_from_json, to: :routes_to_json }
+      end
+
+      def self.from_json(json)
+        doc = JSON.parse(json)
+        doc["routes"] = (doc["routes"] || []).map { |route| normalize_route(route) }
+        super(JSON.generate(doc))
+      end
+
+      def self.normalize_route(route)
+        target = route.delete("target")
+        return route unless target.is_a?(Hash)
+
+        route.merge("resource" => target["file"], "dataset" => target["dataset"]).compact
+      end
+      private_class_method :normalize_route
+
+      def routes_from_json(model, value)
+        model.routes = (value || []).map { |route| Route.from_json(JSON.generate(route)) }
+      end
+
+      # Writers emit the canonical form only: deterministic, sorted by path.
+      def routes_to_json(model, doc)
+        doc["routes"] = model.routes.sort_by(&:path).map do |route|
+          JSON.parse(route.to_json)
         end
       end
-    end
 
-    class Route < Shale::Mapper
-      attribute :path, Shale::Type::String
-      attribute :target, RouteTarget
-    end
-
-    class RoutesConfig < Shale::Mapper
-      attribute :routes, Route, collection: true
-
-      def resolve(route)
-        routes.detect { |r| r.path == route }
+      def resolve(path)
+        routes.detect { |route| route.path == path }
       end
 
-      def add(route, target)
-        target = RouteTarget.new(file: target) if target.is_a?(String)
-        r = Route.new(path: route, target: target)
-        @routes << r
-        r
+      def add(path, target)
+        route = Route.new(path: path, resource: target)
+        self.routes = routes + [route]
+        route
       end
 
-      def update(route, updated_route, updated_target)
-        r = resolve(route)
-        r.path = updated_route
-        r.target = updated_target
-        r
+      def update(path, updated_path, updated_target)
+        route = resolve(path)
+        route.path = updated_path
+        route.resource = updated_target
+        route
       end
 
-      def remove(route)
-        r = resolve(route)
-        @routes.delete(r)
+      def remove(path)
+        self.routes = routes.reject { |route| route.path == path }
       end
 
       def sort!
-        @routes.sort_by!(&:path)
+        self.routes = routes.sort_by(&:path)
         self
       end
     end

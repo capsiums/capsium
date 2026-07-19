@@ -1,0 +1,8 @@
+{
+  "name": "legacy-package",
+  "version": "0.1.0",
+  "description": "A package in the legacy (pre-0.2) capsium gem format",
+  "dependencies": [
+    { "name": "capsium://example.com/other-pkg", "version": ">=1.0.0" }
+  ]
+}

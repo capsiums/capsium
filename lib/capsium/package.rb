@@ -8,32 +8,36 @@ require "zip"
 module Capsium
   class Package
     autoload :Dataset, "capsium/package/dataset"
-    autoload :DatasetConfig, "capsium/package/dataset_config"
-    autoload :Dependency, "capsium/package/metadata_config"
+    autoload :DatasetConfig, "capsium/package/storage_config"
+    autoload :DigitalSignatures, "capsium/package/security_config"
+    autoload :IntegrityChecks, "capsium/package/security_config"
     autoload :Manifest, "capsium/package/manifest"
     autoload :ManifestConfig, "capsium/package/manifest_config"
-    autoload :ManifestConfigItem, "capsium/package/manifest_config"
     autoload :Metadata, "capsium/package/metadata"
     autoload :MetadataData, "capsium/package/metadata_config"
+    autoload :Repository, "capsium/package/metadata_config"
+    autoload :Resource, "capsium/package/manifest_config"
     autoload :Route, "capsium/package/routes_config"
-    autoload :RouteTarget, "capsium/package/routes_config"
     autoload :Routes, "capsium/package/routes"
     autoload :RoutesConfig, "capsium/package/routes_config"
+    autoload :Security, "capsium/package/security"
+    autoload :SecurityConfig, "capsium/package/security_config"
+    autoload :SecurityData, "capsium/package/security_config"
     autoload :Storage, "capsium/package/storage"
     autoload :StorageConfig, "capsium/package/storage_config"
+    autoload :StorageData, "capsium/package/storage_config"
+    autoload :Validator, "capsium/package/validator"
 
     attr_reader :name, :path, :manifest, :metadata, :routes, :storage,
-                :load_type
+                :security, :load_type
 
     MANIFEST_FILE = "manifest.json"
     METADATA_FILE = "metadata.json"
-    PACKAGING_FILE = "packaging.json"
-    SIGNATURE_FILE = "signature.json"
     STORAGE_FILE = "storage.json"
     ROUTES_FILE = "routes.json"
+    SECURITY_FILE = "security.json"
     CONTENT_DIR = "content"
     DATA_DIR = "data"
-    ENCRYPTED_PACKAGING_FILE = "package.enc"
 
     def initialize(path, load_type: nil)
       @original_path = Pathname.new(path).expand_path
@@ -42,6 +46,7 @@ module Capsium
       create_package_structure
       load_package
       @name = metadata.name
+      verify_integrity!
     end
 
     def prepare_package(path)
@@ -50,35 +55,21 @@ module Capsium
       if File.file?(path)
         return decompress_cap_file(path) if File.extname(path) == ".cap"
 
-        raise "Error: The package must have a .cap extension"
+        raise Error, "The package must have a .cap extension"
       end
 
-      raise "Invalid package path: #{path}"
+      raise Error, "Invalid package path: #{path}"
     end
 
     def solidify
       @manifest.save_to_file
       @metadata.save_to_file
       @routes.save_to_file
-      @storage.save_to_file
+      @storage.save_to_file unless @storage.empty?
     end
 
     def decompress_cap_file(file_path)
-      temp_dir = Dir.mktmpdir
-      metadata_path = File.join(temp_dir, METADATA_FILE)
-
-      # Extract metadata.json first
-      Zip::File.open(file_path) do |zip_file|
-        if (entry = zip_file.find_entry(METADATA_FILE))
-          entry.extract(metadata_path)
-        end
-      end
-
-      metadata = Metadata.new(metadata_path)
-      package_name = metadata.name
-      package_version = metadata.version
-
-      package_path = File.join(temp_dir, "#{package_name}-#{package_version}")
+      package_path = File.join(Dir.mktmpdir, package_stem(file_path))
       FileUtils.mkdir_p(package_path)
 
       Zip::File.open(file_path) do |zip_file|
@@ -100,6 +91,7 @@ module Capsium
       @manifest = Manifest.new(manifest_path)
       @storage = Storage.new(storage_path)
       @routes = Routes.new(routes_path, @manifest, @storage)
+      @security = Security.new(security_path)
     end
 
     def cleanup
@@ -125,7 +117,24 @@ module Capsium
       :unsaved
     end
 
+    # Verifies the package against security.json (ARCHITECTURE.md section
+    # 6). Returns a list of typed errors; empty when no security.json is
+    # present or all checksums match.
+    def verify_integrity
+      return [] unless @security.present?
+
+      @security.verify(@path)
+    end
+
+    def verify_integrity!
+      @security.verify!(@path) if @security.present?
+    end
+
     private
+
+    def package_stem(file_path)
+      File.basename(file_path, ".cap")
+    end
 
     def create_package_structure
       FileUtils.mkdir_p(@path)
@@ -133,28 +142,18 @@ module Capsium
       FileUtils.mkdir_p(data_path)
     end
 
-    def content_path
-      File.join(@path, CONTENT_DIR)
-    end
+    def content_path = File.join(@path, CONTENT_DIR)
 
-    def data_path
-      File.join(@path, DATA_DIR)
-    end
+    def data_path = File.join(@path, DATA_DIR)
 
-    def routes_path
-      File.join(@path, ROUTES_FILE)
-    end
+    def routes_path = File.join(@path, ROUTES_FILE)
 
-    def storage_path
-      File.join(@path, STORAGE_FILE)
-    end
+    def storage_path = File.join(@path, STORAGE_FILE)
 
-    def metadata_path
-      File.join(@path, METADATA_FILE)
-    end
+    def metadata_path = File.join(@path, METADATA_FILE)
 
-    def manifest_path
-      File.join(@path, MANIFEST_FILE)
-    end
+    def manifest_path = File.join(@path, MANIFEST_FILE)
+
+    def security_path = File.join(@path, SECURITY_FILE)
   end
 end

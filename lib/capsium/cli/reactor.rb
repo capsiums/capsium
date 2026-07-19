@@ -17,10 +17,6 @@ module Capsium
           do_not_listen: options[:do_not_listen]
         )
         reactor.serve
-      rescue StandardError => e
-        puts e
-        puts e.inspect
-        puts e.backtrace
       ensure
         reactor&.package&.cleanup
       end

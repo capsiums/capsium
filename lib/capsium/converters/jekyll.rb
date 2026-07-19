@@ -62,7 +62,7 @@ module Capsium
           route.path == "/"
         end
         if root_route
-          index_path = File.join(package.path, root_route.target.file)
+          index_path = File.join(package.path, root_route.resource)
           index_content = File.read(index_path)
           write_file("index.html", index_content)
         else
