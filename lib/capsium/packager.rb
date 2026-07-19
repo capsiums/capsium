@@ -61,7 +61,7 @@ module Capsium
       entries = Dir[File.join(package.path, "**", "**")].reject do |file|
         File.expand_path(file) == File.expand_path(cap_file)
       end
-      Zip::File.open(cap_file, Zip::File::CREATE) do |zipfile|
+      Zip::File.open(cap_file, create: true) do |zipfile|
         entries.each do |file|
           zipfile.add(file.sub("#{package.path}/", ""), file)
         end
