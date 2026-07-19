@@ -62,6 +62,9 @@ module Capsium
 
       def delete_item: (Package::Dataset dataset, String id) -> nil
 
+      # Whether the dataset has recorded mutations.
+      def mutations?: (String name) -> bool
+
       # The item id convention: an "id" field, else nil (positional).
       def item_id: (untyped item) -> String?
     end

@@ -147,6 +147,9 @@ module Capsium
         item["id"].to_s if item.is_a?(Hash) && item.key?("id")
       end
 
+      # Whether the dataset has recorded mutations.
+      def mutations?(name) = !mutation_log(name).empty?
+
       private
 
       def base_items(dataset)
@@ -201,6 +204,8 @@ module Capsium
       end
 
       def load_ops(name)
+        return [] unless name.match?(SAFE_NAME_PATTERN)
+
         path = ops_path(name)
         return [] unless File.file?(path)
 

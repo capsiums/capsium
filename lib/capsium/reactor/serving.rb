@@ -13,6 +13,15 @@ module Capsium
 
       private
 
+      # One request metric and one log line per served request.
+      def record_request(request, response)
+        status = response.status
+        return if status.nil?
+
+        @metrics.record(status)
+        @log_buffer.add("#{request.request_method} #{request.path} -> #{status}")
+      end
+
       # The mount answering a request path: longest matching prefix wins.
       def resolve_mount(path)
         mounts_by_length.find { |mount| mount.matches?(path) }
