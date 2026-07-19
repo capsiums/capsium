@@ -21,6 +21,22 @@
   `capsium package verify-signature PATH [--cert CERT.pem]` (exit status 1
   on unsigned packages and verification failures). Both accept a package
   directory or a `.cap` file.
+- Whole-package encryption (AES-256-GCM, RSA-OAEP-SHA256 wrapped DEK) per
+  the packaging standard's encryption clause: `Capsium::Package::Cipher`
+  encrypts a package directory or `.cap` into the standard encrypted
+  layout (`metadata.json` cleartext, `signature.json` encryption envelope,
+  `package.enc` AES-256-GCM of the inner `.cap` zip) and decrypts it back.
+  The OCB/OpenPGP alternatives mentioned by the standard are intentionally
+  not implemented.
+- `capsium package encrypt PATH --public-key PUB.pem -o OUT.cap` and
+  `capsium package decrypt PATH --private-key PRIV.pem [-o OUT.cap]`.
+- `Capsium::Package.new(path, decryption_key:)` transparently decrypts an
+  encrypted `.cap` (or uncompressed encrypted directory) on load; without
+  a key it raises `Capsium::Package::Cipher::KeyRequiredError` (the
+  reactor refuses to serve), and a wrong key or tampered ciphertext raises
+  `Capsium::Package::Cipher::DecryptionError` (GCM authentication).
+- `Capsium::Packager#transform_cap`/`#with_unpacked_cap` helpers for
+  in-place `.cap` transformations.
 
 ### Changed
 

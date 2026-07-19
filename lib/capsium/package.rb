@@ -8,7 +8,10 @@ module Capsium
   class Package
     autoload :Dataset, "capsium/package/dataset"
     autoload :DatasetConfig, "capsium/package/storage_config"
+    autoload :Cipher, "capsium/package/cipher"
     autoload :DigitalSignatures, "capsium/package/security_config"
+    autoload :EncryptionConfig, "capsium/package/encryption_config"
+    autoload :EncryptionEnvelope, "capsium/package/encryption_config"
     autoload :IntegrityChecks, "capsium/package/security_config"
     autoload :Manifest, "capsium/package/manifest"
     autoload :ManifestConfig, "capsium/package/manifest_config"
@@ -40,7 +43,8 @@ module Capsium
     CONTENT_DIR = "content"
     DATA_DIR = "data"
 
-    def initialize(path, load_type: nil)
+    def initialize(path, load_type: nil, decryption_key: nil)
+      @decryption_key = decryption_key
       @original_path = Pathname.new(path).expand_path
       @path = prepare_package(@original_path).to_s
       @load_type = load_type || determine_load_type(path)
@@ -52,15 +56,12 @@ module Capsium
     end
 
     def prepare_package(path)
+      return decrypt_cap_file(path) if Cipher.encrypted?(path)
       return path if File.directory?(path)
+      raise Error, "Invalid package path: #{path}" unless File.file?(path)
+      raise Error, "The package must have a .cap extension" unless File.extname(path) == ".cap"
 
-      if File.file?(path)
-        return decompress_cap_file(path) if File.extname(path) == ".cap"
-
-        raise Error, "The package must have a .cap extension"
-      end
-
-      raise Error, "Invalid package path: #{path}"
+      decompress_cap_file(path)
     end
 
     def solidify
@@ -77,6 +78,19 @@ module Capsium
       package_path
     end
 
+    # Decrypts an encrypted package (.cap file or uncompressed directory)
+    # into a temporary directory and returns its path. The metadata.json
+    # of an encrypted package stays cleartext, but everything else is
+    # only readable with the recipient's private key.
+    def decrypt_cap_file(source_path)
+      unless @decryption_key
+        raise Cipher::KeyRequiredError,
+              "Package is encrypted; provide the private key via decryption_key:"
+      end
+
+      Cipher.decrypt_to_directory(source_path, @decryption_key)
+    end
+
     def load_package
       # Mandatory
       @metadata = Metadata.new(metadata_path)
@@ -89,14 +103,10 @@ module Capsium
     end
 
     def cleanup
-      return unless @path != @original_path.to_s && File.directory?(@path)
-
-      FileUtils.remove_entry(@path)
+      FileUtils.remove_entry(@path) if @path != @original_path.to_s && File.directory?(@path)
     end
 
-    def datasets
-      storage.datasets
-    end
+    def datasets = storage.datasets
 
     # The .cap file this package was loaded from, or nil when loaded
     # from a directory.
@@ -105,25 +115,20 @@ module Capsium
     end
 
     def content_files
-      Dir.glob(File.join(content_path, "**", "*")).select do |file|
-        File.file?(file)
-      end
+      Dir.glob(File.join(content_path, "**", "*")).select { |file| File.file?(file) }
     end
 
     def determine_load_type(path)
       return :directory if File.directory?(path)
-      return :cap_file if File.extname(path) == ".cap"
 
-      :unsaved
+      File.extname(path) == ".cap" ? :cap_file : :unsaved
     end
 
     # Verifies the package against security.json (ARCHITECTURE.md section
     # 6). Returns a list of typed errors; empty when no security.json is
     # present or all checksums match.
     def verify_integrity
-      return [] unless @security.present?
-
-      @security.verify(@path)
+      @security.present? ? @security.verify(@path) : []
     end
 
     def verify_integrity!
@@ -151,7 +156,6 @@ module Capsium
     end
 
     def create_package_structure
-      FileUtils.mkdir_p(@path)
       FileUtils.mkdir_p(content_path)
       FileUtils.mkdir_p(data_path)
     end

@@ -18,6 +18,15 @@ module Capsium
 
     def compress_package: (Package package, String cap_file) -> void
 
+    # Unpacks a .cap into a temporary directory, yields it for read-only
+    # inspection and returns the block's value.
+    def with_unpacked_cap: (String cap_path) { (String dir) -> untyped } -> untyped
+
+    # Unpacks a .cap into a temporary directory, yields it for
+    # modification, then recompresses the result back over cap_path.
+    # Returns cap_path.
+    def transform_cap: (String cap_path) { (String dir) -> untyped } -> String
+
     def relative_path_current: (String absolute_path) -> String
   end
 end

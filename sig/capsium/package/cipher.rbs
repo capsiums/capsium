@@ -1,0 +1,51 @@
+module Capsium
+  class Package
+    # Encrypts and decrypts whole Capsium packages (05x-packaging
+    # "Encryption", 05x-security "Encrypted information"). An encrypted
+    # .cap is a zip containing metadata.json (cleartext), signature.json
+    # (the encryption envelope) and package.enc (AES-256-GCM of the inner
+    # plaintext .cap zip). The random DEK is wrapped with the recipient's
+    # RSA public key using OAEP with SHA-256. OCB/OpenPGP are out of
+    # scope.
+    class Cipher
+      ALGORITHM: String
+      KEY_MANAGEMENT: String
+      CIPHER_NAME: String
+      ENCRYPTED_FILE: String
+      ENVELOPE_FILE: String
+      RSA_OPTIONS: Hash[String, String]
+
+      # Structural problems: unreadable input, missing zip entries,
+      # unsupported envelope algorithms, unloadable keys.
+      class CipherError < Capsium::Error
+      end
+
+      # An encrypted package was opened without a private key.
+      class KeyRequiredError < CipherError
+      end
+
+      # Decryption failed: wrong private key or tampered ciphertext.
+      class DecryptionError < CipherError
+      end
+
+      # Whether the path (.cap file or uncompressed directory) is an
+      # encrypted package, i.e. contains package.enc.
+      def self.encrypted?: (String | Pathname path) -> bool
+
+      # Encrypts the package at source_path (a .cap file, or a package
+      # directory which is packed first) for the recipient's RSA public
+      # key (or X.509 certificate) and writes the encrypted .cap to
+      # output_path. Returns output_path.
+      def encrypt: (String source_path, String public_key_path, String output_path) -> String
+
+      # Decrypts the encrypted package at encrypted_path (.cap file or
+      # uncompressed directory) with the recipient's RSA private key and
+      # writes the plaintext .cap to output_path. Returns output_path.
+      def decrypt: (String | Pathname encrypted_path, String private_key_path, String output_path) -> String
+
+      # Decrypts an encrypted package into a fresh temporary directory
+      # and returns the directory path.
+      def self.decrypt_to_directory: (String | Pathname source_path, String private_key_path) -> String
+    end
+  end
+end

@@ -31,6 +31,15 @@ module Capsium
 
       def initialize: (String package_path) -> void
 
+      # Signs a package directory in place, or a .cap file (unpacked,
+      # signed, recompressed). Returns the signed path.
+      def self.sign_package: (String path, String private_key_path, ?String? certificate_path) -> String
+
+      # Verifies the declared signature of a package directory or .cap
+      # file (false on mismatch; raises typed SignatureError subclasses
+      # on structural problems, e.g. an unsigned package).
+      def self.verify_package: (String path, ?String? public_key_path) -> bool
+
       # Signs the package directory in place: embeds the public key PEM,
       # regenerates security.json (checksums plus digitalSignatures) and
       # writes the raw RSA-SHA256 signature to signature.sig. Returns the

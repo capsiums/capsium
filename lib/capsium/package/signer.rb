@@ -43,6 +43,29 @@ module Capsium
         @package_path = package_path
       end
 
+      # Signs a package directory in place, or a .cap file (unpacked,
+      # signed, recompressed). Returns the signed path.
+      def self.sign_package(path, private_key_path, certificate_path = nil)
+        return new(path).sign(private_key_path, certificate_path) unless cap?(path)
+
+        Packager.new.transform_cap(path) { |dir| new(dir).sign(private_key_path, certificate_path) }
+        path
+      end
+
+      # Verifies the declared signature of a package directory or .cap
+      # file (false on mismatch; raises typed SignatureError subclasses
+      # on structural problems, e.g. an unsigned package).
+      def self.verify_package(path, public_key_path = nil)
+        return new(path).verify(public_key_path) unless cap?(path)
+
+        Packager.new.with_unpacked_cap(path) { |dir| new(dir).verify(public_key_path) }
+      end
+
+      def self.cap?(path)
+        File.extname(path) == ".cap"
+      end
+      private_class_method :cap?
+
       # Signs the package directory in place: embeds the public key PEM,
       # regenerates security.json (checksums plus digitalSignatures) and
       # writes the raw RSA-SHA256 signature to signature.sig. When a
