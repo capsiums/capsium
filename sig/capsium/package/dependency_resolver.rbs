@@ -1,0 +1,49 @@
+module Capsium
+  class Package
+    # Base error for composite-package dependency resolution
+    # (ARCHITECTURE.md section 4a).
+    class DependencyError < Capsium::Error
+    end
+
+    # No package in the store provides the dependency GUID.
+    class DependencyNotFoundError < DependencyError
+    end
+
+    # The store provides the GUID but no version satisfies the range.
+    class UnsatisfiableDependencyError < DependencyError
+    end
+
+    # A dependency cycle was detected while resolving.
+    class CircularDependencyError < DependencyError
+    end
+
+    # A dependent route references a dependency resource that is not
+    # exported (private) and therefore not visible to dependents.
+    class DependencyVisibilityError < DependencyError
+    end
+
+    # One resolved dependency: the declared GUID and range, the .cap it
+    # resolved to and the loaded package.
+    class ResolvedDependency
+      def self.new: (String guid, String range, String path, Package package) -> void
+
+      def guid: () -> String
+      def range: () -> String
+      def path: () -> String
+      def package: () -> Package
+      def version: () -> String?
+    end
+
+    # Orchestrates metadata.dependencies resolution against a package
+    # store: circularity checks plus store lookup.
+    class DependencyResolver
+      attr_reader store: Store
+
+      def initialize: (Store | String? store) -> void
+
+      # The newest store .cap satisfying the dependency, raising typed
+      # errors for circular, missing or unsatisfiable dependencies.
+      def resolve_path: (String guid, String range, chain: Array[String] chain) -> String
+    end
+  end
+end

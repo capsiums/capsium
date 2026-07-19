@@ -3,6 +3,8 @@ module Capsium
   # Monitoring HTTP API (ARCHITECTURE.md section 7) and reloads the
   # package on filesystem changes.
   class Reactor
+    include Serving
+
     DEFAULT_PORT: Integer
     DEFAULT_CACHE_CONTROL: String
 
@@ -17,7 +19,8 @@ module Capsium
 
     def initialize: (package: Package | String package, ?port: Integer port,
                      ?cache_control: String? cache_control,
-                     ?do_not_listen: bool do_not_listen) -> void
+                     ?do_not_listen: bool do_not_listen,
+                     ?store: (Package::Store | String)? store) -> void
 
     def serve: () -> untyped
 

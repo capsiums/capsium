@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require_relative "package/package_spec_helper"
+require_relative "package/composite_spec_helper"
 
 bare_manifest = {
   "resources" => {
@@ -116,6 +117,22 @@ RSpec.describe Capsium::Package do
 
   context "with a legacy-format package as directory" do
     include_context "package setup", "legacy-package", "0.1.0", :directory
+
+    # The normalized legacy dependency is a real dependency (section 4a);
+    # loading resolves it against a store providing it.
+    let(:workdir) { Dir.mktmpdir }
+    let(:package) do
+      store = CompositeSpecHelper.build_single_package_store(
+        workdir, name: "other-pkg", version: "1.0.0",
+                 guid: "capsium://example.com/other-pkg"
+      )
+      Capsium::Package.new(package_path, store: store)
+    end
+
+    after do
+      package.cleanup
+      FileUtils.rm_rf(workdir)
+    end
 
     it "normalizes legacy dependencies to the object form" do
       expect(package.metadata.dependencies).to eq(

@@ -1,8 +1,22 @@
 module Capsium
   class Package
+    # The "responseRewrite" object of an inherited route (05x-routing
+    # section "Route Inheritance"): replaces the served body and/or
+    # overrides response headers.
+    class ResponseRewrite
+      attr_accessor body: String?
+      attr_accessor headers: Hash[String, String]?
+
+      def initialize: (?body: String? body, ?headers: Hash[String, String]? headers) -> void
+
+      def to_json: (*untyped args) -> String
+      def to_hash: () -> Hash[String, untyped]
+    end
+
     # A single route entry (ARCHITECTURE.md section 4). Kinds are
     # discriminated by key, MECE: static file, dataset route, or dynamic
-    # handler (accepted-and-ignored; reactors respond 501).
+    # handler (accepted-and-ignored; reactors respond 501). Route
+    # inheritance attributes per 05x-routing.
     class Route
       DATASET_PATH_PREFIX: String
 
@@ -15,6 +29,10 @@ module Capsium
       attr_accessor access_control: Hash[String, untyped]?
       attr_accessor http_method: String?
       attr_accessor handler: String?
+      attr_accessor remap: String?
+      attr_accessor response_rewrite: ResponseRewrite?
+      attr_accessor response_headers: Hash[String, String]?
+      attr_accessor request_headers: Hash[String, String]?
 
       def initialize: (?path: String? path, ?resource: String? resource,
                        ?headers: Hash[String, String]? headers,
@@ -22,7 +40,10 @@ module Capsium
                        ?visibility: String? visibility, ?dataset: String? dataset,
                        ?access_control: Hash[String, untyped]? access_control,
                        ?http_method: String? http_method,
-                       ?handler: String? handler) -> void
+                       ?handler: String? handler, ?remap: String? remap,
+                       ?response_rewrite: ResponseRewrite? response_rewrite,
+                       ?response_headers: Hash[String, String]? response_headers,
+                       ?request_headers: Hash[String, String]? request_headers) -> void
 
       def self.from_json: (String json) -> instance
 
@@ -31,6 +52,18 @@ module Capsium
       def dataset_route?: () -> bool
 
       def handler_route?: () -> bool
+
+      # The URL path this route answers at: the remapped path when the
+      # route remaps an inherited route, its own path otherwise.
+      def serving_path: () -> String?
+
+      # Whether the resource addresses content of a dependency package
+      # ("<dependency-guid>/<path>" — a URI rather than a
+      # package-relative path).
+      def dependency_reference?: () -> bool
+
+      # Whether the route carries route-inheritance attributes.
+      def inherited?: () -> bool
 
       def fs_path: (String package_path) -> String?
 

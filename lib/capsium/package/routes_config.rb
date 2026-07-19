@@ -5,12 +5,33 @@ require "lutaml/model"
 
 module Capsium
   class Package
+    # The "responseRewrite" object of an inherited route (05x-routing
+    # section "Route Inheritance"): replaces the served body and/or
+    # overrides response headers.
+    class ResponseRewrite < Lutaml::Model::Serializable
+      attribute :body, :string
+      attribute :headers, :hash
+
+      json do
+        map :body, to: :body
+        map :headers, to: :headers
+      end
+    end
+
     # A single route entry (ARCHITECTURE.md section 4). Kinds are
     # discriminated by key, MECE:
     # - {path, resource, headers?, visibility?} -- static file
     # - {path, dataset, accessControl?}        -- dataset route
     # - {path, method, handler, ...}           -- dynamic handler (parsed,
     #   accepted-and-ignored; reactors respond 501)
+    #
+    # Route inheritance (05x-routing): a resource of the form
+    # "<dependency-guid>/<path>" (a URI, i.e. containing "://") pulls
+    # content from a dependency package; "remap" replaces the serving
+    # path; "responseRewrite"/"responseHeaders" post-process the
+    # response; "requestHeaders" are recorded for forwarding reactors
+    # (the Ruby reactor serves statically and does not forward, so they
+    # do not alter its responses).
     class Route < Lutaml::Model::Serializable
       DATASET_PATH_PREFIX = "/api/v1/data/"
 
@@ -23,6 +44,10 @@ module Capsium
       attribute :access_control, :hash
       attribute :http_method, :string
       attribute :handler, :string
+      attribute :remap, :string
+      attribute :response_rewrite, ResponseRewrite
+      attribute :response_headers, :hash
+      attribute :request_headers, :hash
 
       json do
         map :path, to: :path
@@ -34,6 +59,10 @@ module Capsium
         map "accessControl", to: :access_control
         map "method", to: :http_method
         map :handler, to: :handler
+        map :remap, to: :remap
+        map "responseRewrite", to: :response_rewrite
+        map "responseHeaders", to: :response_headers
+        map "requestHeaders", to: :request_headers
       end
 
       def kind
@@ -51,6 +80,25 @@ module Capsium
         kind == :handler
       end
 
+      # The URL path this route answers at: the remapped path when the
+      # route remaps an inherited route, its own path otherwise.
+      def serving_path
+        remap || path
+      end
+
+      # Whether the resource addresses content of a dependency package
+      # ("<dependency-guid>/<path>" — a URI rather than a
+      # package-relative path).
+      def dependency_reference?
+        resource.is_a?(String) && resource.include?("://")
+      end
+
+      # Whether the route carries route-inheritance attributes.
+      def inherited?
+        dependency_reference? || !remap.nil? || !response_rewrite.nil? ||
+          !response_headers.nil? || !request_headers.nil?
+      end
+
       def fs_path(package_path)
         return unless resource
 
@@ -63,6 +111,7 @@ module Capsium
 
       def validate_target(package_path, storage, merged_view: nil)
         return if handler_route?
+        return if dependency_reference?
 
         if dataset_route?
           return if storage.dataset(dataset)
@@ -126,7 +175,7 @@ module Capsium
       end
 
       def resolve(path)
-        routes.detect { |route| route.path == path }
+        routes.detect { |route| route.serving_path == path }
       end
 
       def add(path, target)

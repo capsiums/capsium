@@ -24,17 +24,23 @@ module Capsium
 
       attr_reader package_path: String
       attr_reader layers: Array[Layer]
-      attr_reader dependency_views: Array[MergedView]
+      attr_reader dependency_views: Array[[String, MergedView]]
 
       def initialize: (String package_path, storage: Storage storage,
                        manifest: Manifest manifest,
-                       ?dependency_views: Array[MergedView] dependency_views,
+                       ?dependency_views: Array[[String, MergedView]] dependency_views,
                        ?exported_only: bool exported_only) -> void
 
-      # The absolute filesystem path serving a package-relative content
-      # path ("content/app.js"), or nil when no layer provides it or it is
-      # tombstoned. Non-content paths never resolve through the view.
-      def resolve: (String? relative_path) -> String?
+      # The absolute filesystem path serving a resource reference: a
+      # package-relative content path ("content/app.js"), or a dependency
+      # reference ("<dependency-guid>/content/app.js"). nil when no layer
+      # provides the path or it is tombstoned. Non-content paths never
+      # resolve through the view.
+      def resolve: (String? reference) -> String?
+
+      # The [GUID, view] pair whose GUID prefixes the reference (longest
+      # GUID first, so nested GUIDs address the innermost dependency).
+      def dependency_pair_for: (String reference) -> [String, MergedView]?
     end
   end
 end

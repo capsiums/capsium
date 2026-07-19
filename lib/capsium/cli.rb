@@ -7,6 +7,7 @@ module Capsium
     extend ThorExt::Start
 
     autoload :Convert, "capsium/cli/convert"
+    autoload :Formatting, "capsium/cli/formatting"
     autoload :Package, "capsium/cli/package"
     autoload :Reactor, "capsium/cli/reactor"
 

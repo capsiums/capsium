@@ -1,0 +1,39 @@
+{
+  "index": "content/index.html",
+  "routes": [
+    { "path": "/", "resource": "content/index.html" },
+    { "path": "/index.html", "resource": "content/index.html" },
+    { "path": "/shared.txt", "resource": "content/shared.txt" },
+    { "path": "/app.js", "resource": "content/app.js" },
+    {
+      "path": "/vendor/public.txt",
+      "resource": "https://example.com/capsiums/base-package/content/public.txt"
+    },
+    {
+      "path": "/vendor/app.js",
+      "resource": "https://example.com/capsiums/base-package/content/app.js",
+      "remap": "/core/app.js"
+    },
+    {
+      "path": "/rewritten",
+      "resource": "https://example.com/capsiums/base-package/content/public.txt",
+      "responseRewrite": {
+        "body": "Modified response content",
+        "headers": { "X-Custom-Header": "CustomValue" }
+      }
+    },
+    {
+      "path": "/enhanced",
+      "resource": "https://example.com/capsiums/base-package/content/public.txt",
+      "responseHeaders": {
+        "Cache-Control": "no-cache",
+        "X-Enhanced-Header": "EnhancedValue"
+      }
+    },
+    {
+      "path": "/supplanted",
+      "resource": "https://example.com/capsiums/base-package/content/public.txt",
+      "requestHeaders": { "Authorization": "Bearer new-token" }
+    }
+  ]
+}

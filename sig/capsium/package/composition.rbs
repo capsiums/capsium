@@ -1,0 +1,20 @@
+module Capsium
+  class Package
+    # Composite-package support (ARCHITECTURE.md section 4a), mixed into
+    # Package: metadata.dependencies resolution against a package store
+    # and load-time validation of dependency resource references.
+    module Composition
+      private
+
+      def resolve_dependencies: ((Store | String)? store, Array[String] chain) -> Array[ResolvedDependency]
+
+      def validate_dependency_references!: () -> void
+
+      def validate_dependency_reference: (Route route, ResolvedDependency dependency, String reference) -> void
+
+      def dependency_for: (String reference) -> ResolvedDependency?
+
+      def dependency_views: () -> Array[[String, MergedView]]
+    end
+  end
+end

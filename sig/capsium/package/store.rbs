@@ -1,0 +1,37 @@
+module Capsium
+  class Package
+    # A package store directory (ARCHITECTURE.md section 4a):
+    # "<name>-<version>.cap" files plus an optional index.json mapping
+    # dependency GUID -> file name. Dependencies resolve to the newest
+    # version satisfying their semver range.
+    class Store
+      INDEX_FILE: String
+      CAP_GLOB: String
+
+      # One store .cap with its identity per its metadata.json.
+      class CatalogEntry
+        def self.new: (String path, String? guid, Version version) -> void
+
+        def path: () -> String
+        def guid: () -> String?
+        def version: () -> Version
+      end
+
+      attr_reader dir: String
+
+      # The store configured via the CAPSIUM_STORE environment variable,
+      # or nil when unset.
+      def self.default: () -> Store?
+
+      def initialize: (String dir) -> void
+
+      # The newest .cap providing the dependency GUID whose version
+      # satisfies the range string. Raises DependencyNotFoundError or
+      # UnsatisfiableDependencyError when it cannot.
+      def find: (String guid, String range_string) -> String
+
+      # Every .cap in the store with its metadata identity (memoized).
+      def catalog: () -> Array[CatalogEntry]
+    end
+  end
+end

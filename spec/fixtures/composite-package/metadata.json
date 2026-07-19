@@ -1,0 +1,12 @@
+{
+  "name": "composite-package",
+  "version": "0.1.0",
+  "description": "A package depending on base-package",
+  "guid": "https://example.com/capsiums/composite-package",
+  "uuid": "7a1c3e5f-2d4b-4a6c-9e8f-0b1c2d3e4f5a",
+  "author": "Ribose Inc.",
+  "license": "MIT",
+  "dependencies": {
+    "https://example.com/capsiums/base-package": "^1.0.0"
+  }
+}

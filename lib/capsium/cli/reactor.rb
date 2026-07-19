@@ -9,12 +9,16 @@ module Capsium
            "Start the Capsium reactor to serve the package"
       option :port, type: :numeric, default: Capsium::Reactor::DEFAULT_PORT
       option :do_not_listen, type: :boolean, default: false
+      option :store, type: :string,
+                     desc: "Package store directory for dependency " \
+                           "resolution (default: CAPSIUM_STORE)"
 
       def serve(path_to_package)
         reactor = Capsium::Reactor.new(
           package: path_to_package,
           port: options[:port],
-          do_not_listen: options[:do_not_listen]
+          do_not_listen: options[:do_not_listen],
+          store: options[:store]
         )
         reactor.serve
       ensure

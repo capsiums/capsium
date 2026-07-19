@@ -16,6 +16,13 @@ module Capsium
     # dependency's content) holds the file, while a file reappearing in a
     # layer ABOVE the tombstone is served again.
     #
+    # Composite packages (section 4a): `dependency_views` are
+    # [dependency GUID, MergedView] pairs acting as read-only layers below
+    # ALL own layers. A resource reference that is a URI of the form
+    # "<dependency-guid>/<path>" resolves explicitly against that
+    # dependency's view; plain content paths fall through to the
+    # dependency layers in declaration order after all own layers miss.
+    #
     # With `exported_only: true` (the view a dependent package gets):
     # layers whose visibility is "private" are hidden entirely, and a path
     # resolves only when the manifest lists the resource as "exported".
@@ -47,11 +54,22 @@ module Capsium
         @layers = build_layers
       end
 
-      # The absolute filesystem path serving a package-relative content
-      # path ("content/app.js"), or nil when no layer provides it or it is
-      # tombstoned. Non-content paths never resolve through the view.
-      def resolve(relative_path)
-        content_relative = content_relative(relative_path)
+      # The absolute filesystem path serving a resource reference: a
+      # package-relative content path ("content/app.js"), or a dependency
+      # reference ("<dependency-guid>/content/app.js"). nil when no layer
+      # provides the path or it is tombstoned. Non-content paths never
+      # resolve through the view.
+      def resolve(reference)
+        return unless reference.is_a?(String)
+
+        if reference.include?("://")
+          pair = dependency_pair_for(reference)
+          return unless pair
+
+          return pair[1].resolve(reference.delete_prefix("#{pair[0]}/"))
+        end
+
+        content_relative = content_relative(reference)
         return unless content_relative
         return if content_relative == TOMBSTONE_FILE
 
@@ -59,7 +77,15 @@ module Capsium
         return if result == :tombstoned
         return result if result
 
-        resolve_dependencies(relative_path)
+        resolve_dependencies(reference)
+      end
+
+      # The [GUID, view] pair whose GUID prefixes the reference (longest
+      # GUID first, so nested GUIDs address the innermost dependency).
+      def dependency_pair_for(reference)
+        @dependency_views
+          .sort_by { |guid, _view| -guid.length }
+          .find { |guid, _view| reference.start_with?("#{guid}/") }
       end
 
       private
@@ -81,8 +107,8 @@ module Capsium
       end
 
       def resolve_dependencies(relative_path)
-        @dependency_views.each do |view|
-          found = view.resolve(relative_path)
+        @dependency_views.each do |pair|
+          found = pair.last.resolve(relative_path)
           return found if found
         end
         nil
