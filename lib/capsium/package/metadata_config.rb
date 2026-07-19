@@ -36,6 +36,7 @@ module Capsium
       attribute :repository, Repository
       attribute :dependencies, :hash, default: {}
       attribute :read_only, :boolean
+      attribute :modules, :string, collection: true
 
       json do
         map :name, to: :name
@@ -48,6 +49,7 @@ module Capsium
         map :repository, to: :repository
         map :dependencies, to: :dependencies
         map "readOnly", to: :read_only
+        map :modules, to: :modules
       end
 
       def self.from_json(json)
@@ -88,7 +90,14 @@ module Capsium
         problems << "version must be semver" if invalid?(version, SEMVER_PATTERN)
         problems << "guid must be a URI" if guid && !uri?(guid)
         problems << "uuid is not a valid UUID" if invalid?(uuid, UUID_PATTERN)
-        problems
+        problems + module_errors
+      end
+
+      def module_errors
+        return [] if modules.nil? || modules.all? { |mod| mod.match?(KEBAB_CASE_PATTERN) }
+
+        ["modules must be kebab-case module identifiers"]
+      end
       end
 
       def invalid?(value, pattern)
