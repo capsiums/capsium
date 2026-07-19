@@ -36,6 +36,18 @@
   http(s) references in content), exit status 1 on any failure.
 - `capsium package unpack <cap> [-o dir]`.
 - `Capsium::Package::Validator` and `Capsium::Package::Security`.
+- Reactor introspection HTTP API (ARCHITECTURE.md section 7):
+  `GET /api/v1/introspect/metadata`, `/routes`, `/content-hashes` and
+  `/content-validity`, served as JSON by `Capsium::Reactor::Introspection`.
+  `content-hashes` is the SHA-256 of the `.cap` blob, or of the canonical
+  JSON serialization of the content checksums for directory sources;
+  `content-validity` re-verifies integrity live.
+- Zip-slip protection on `.cap` extraction: entries escaping the
+  destination (absolute paths, drive letters, `..` segments) raise
+  `Capsium::Packager::UnsafeEntryError`.
+- RBS signatures for the public API (`sig/`), kept green by the
+  `rbs:validate` rake task (part of the default rake task).
+- `Capsium::Package#cap_file_path`.
 
 ### Removed
 
