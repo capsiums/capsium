@@ -1,0 +1,43 @@
+module Capsium
+  class Package
+    # Bundled dependencies of an encapsulated (self-contained) package:
+    # dependency .cap files embedded under packages/ with a
+    # packages/index.json manifest mapping each dependency GUID to its
+    # file, version and SHA-256. Bundled dependencies resolve first at
+    # load time, before the store -> registry chain.
+    class Bundle
+      DIRECTORY: String
+      INDEX_FILE: String
+
+      # One bundled dependency: the absolute .cap path, its version and
+      # the SHA-256 recorded in the manifest.
+      class Entry
+        def self.new: (String file, String version, String sha256) -> void
+
+        def file: () -> String
+        def version: () -> String
+        def sha256: () -> String
+      end
+
+      attr_reader entries: Hash[String, Entry]
+
+      def initialize: (String? package_path, ?Hash[String, Entry]? entries) -> void
+
+      # Embeds the resolved dependency .cap files (guid => .cap path
+      # pairs) into the package directory at package_path and writes the
+      # packages/index.json manifest. Returns the manifest hash.
+      def self.write: (String package_path, Array[[String, String]] resolutions) -> Hash[String, Hash[String, String]]
+
+      # Whether this bundle embeds any dependency.
+      def present?: () -> bool
+
+      # Merges an inherited (ancestor) bundle underneath this one; own
+      # entries win on GUID conflicts.
+      def merged_with: (Bundle? other) -> Bundle
+
+      # The absolute .cap path for a bundled dependency, or nil when the
+      # GUID is not bundled.
+      def resolve_path: (String guid, String range, chain: Array[String] chain) -> String?
+    end
+  end
+end

@@ -105,13 +105,22 @@ Capsium provides a CLI to help you pack and manage your packages.
 
 [source,bash]
 ----
-capsium package pack [--force/-f] path-to-package
+capsium package pack [--force/-f] [--bundle-deps/--bundle] [--store DIR] [--registry REF] path-to-package
 ----
 
 This command generates `manifest.json`/`routes.json` when absent, writes
 `security.json` with SHA-256 checksums of every package file, and packs the
 directory into `{package-name}-{package-version}.cap` (name and version from
 `metadata.json`).
+
+With `--bundle-deps` (alias `--bundle`) a package that declares
+`metadata.dependencies` is packed as an *encapsulated* package: every
+declared dependency is resolved through the store -> registry chain
+(`--store`/`CAPSIUM_STORE`, `--registry`/`CAPSIUM_REGISTRY`) and embedded
+under `packages/`, so the resulting `.cap` activates with no store or
+registry at all (see <<_encapsulated_packages_bundled_dependencies>>).
+A declared dependency that cannot be resolved aborts the pack with a
+typed dependency error.
 
 .Sample `pack` command
 ====
@@ -520,6 +529,59 @@ circular, missing or unsatisfiable dependencies.
 capsium package info my-composite-package --store ./store
 capsium reactor serve my-composite-package --store ./store
 ----
+
+[[_encapsulated_packages_bundled_dependencies]]
+== Encapsulated packages (bundled dependencies)
+
+`capsium package pack --bundle-deps` (alias `--bundle`) produces a
+*self-contained* package: the resolved dependency `.cap` files are
+embedded inside the parent, so the whole tree activates with no store
+and no registry. Layout inside the `.cap`:
+
+----
+packages/
+  index.json                  # bundled-dependencies manifest
+  <name>-<version>.cap        # one per declared dependency
+----
+
+`packages/index.json` maps each dependency GUID to its embedded file,
+the resolved version and the SHA-256 of the embedded `.cap`:
+
+[source,json]
+----
+{
+  "https://example.com/capsiums/base-package": {
+    "file": "packages/base-package-1.2.0.cap",
+    "version": "1.2.0",
+    "sha256": "<hex sha256 of the .cap>"
+  }
+}
+----
+
+Resolution order on load is *bundle first*: a dependency GUID found in
+`packages/index.json` resolves to the embedded `.cap` (this also works
+when the parent itself was loaded from a `.cap` — the embedded files
+are read out of the parent's extraction); anything not bundled falls
+back to the usual store -> registry chain. The bundle is passed down
+to the dependencies' own resolution, so a dependency's dependency
+resolves from the parent's bundle when the parent re-declares it.
+
+Bundling follows a *one-level policy*: only the dependencies declared
+in the parent's own `metadata.dependencies` are embedded. To make a
+whole tree self-contained, the parent's `metadata.dependencies` must
+list the transitive closure; a bundled dependency whose own
+dependencies are not re-declared by the parent still needs a store or
+registry at activation.
+
+Security: bundled `.cap` files are covered by the parent package's
+`security.json` checksums like every other file; the manifest SHA-256
+is re-verified when a bundled dependency is resolved
+(`Security::IntegrityError` on mismatch), the bundled version must
+still satisfy the declared range, and each bundled package's own
+`security.json` (and any declared signature) is verified when it is
+loaded — the usual activation checks. Serving (layers, visibility,
+route inheritance) is unchanged: bundled sources behave exactly like
+store-resolved ones.
 
 == Static registries
 

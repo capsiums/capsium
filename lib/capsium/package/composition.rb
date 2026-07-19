@@ -3,30 +3,44 @@
 module Capsium
   class Package
     # Composite-package support (ARCHITECTURE.md section 4a), mixed into
-    # Package: metadata.dependencies resolution against a package store
-    # and load-time validation of dependency resource references.
+    # Package: metadata.dependencies resolution — bundled dependencies
+    # (Capsium::Package::Bundle) first, then the package store — and
+    # load-time validation of dependency resource references.
     module Composition
       private
 
-      # Resolves metadata.dependencies against the package store (the
-      # `store` argument, else CAPSIUM_STORE), with the given `registry`
-      # (else CAPSIUM_REGISTRY) as install fallback for store misses.
-      # Each resolved dependency loads recursively with an extended
-      # circularity chain; its exported content becomes lower read-only
-      # layers of this package's merged view.
-      def resolve_dependencies(store, registry, chain)
+      # Resolves metadata.dependencies: bundled dependencies first
+      # (Capsium::Package::Bundle — encapsulated packages embed their
+      # dependencies under packages/, so they activate with no store or
+      # registry), then the store (the `store` argument, else
+      # CAPSIUM_STORE) with the given `registry` (else CAPSIUM_REGISTRY)
+      # as install fallback for store misses. The store resolver is only
+      # constructed when a dependency is not bundled, so a fully
+      # bundled package needs neither. Each resolved dependency loads
+      # recursively with an extended circularity chain and this
+      # package's bundle underneath its own (re-declared transitive
+      # dependencies resolve from it); its exported content becomes
+      # lower read-only layers of this package's merged view.
+      def resolve_dependencies(store, registry, chain, bundle = nil)
         declared = @metadata.dependencies
         return [] if declared.empty?
 
-        resolver = DependencyResolver.new(store || Store.default, registry: registry)
         chain += [@metadata.guid]
+        bundle = Bundle.new(@path).merged_with(bundle)
+        resolver = nil
         declared.map do |guid, range|
-          cap_path = resolver.resolve_path(guid, range, chain: chain)
+          cap_path = bundle.resolve_path(guid, range, chain: chain)
+          if cap_path.nil?
+            resolver ||= DependencyResolver.new(store || Store.default, registry: registry)
+            cap_path = resolver.resolve_path(guid, range, chain: chain)
+          end
           ResolvedDependency.new(
             guid: guid, range: range, path: cap_path,
-            package: Package.new(cap_path, store: resolver.store,
-                                           registry: resolver.registry,
-                                           dependency_chain: chain)
+            package: Package.new(cap_path,
+                                 store: resolver ? resolver.store : store,
+                                 registry: resolver ? resolver.registry : registry,
+                                 dependency_chain: chain,
+                                 bundle: bundle)
           )
         end
       end

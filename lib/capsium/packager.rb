@@ -19,29 +19,13 @@ module Capsium
     DOT_ENTRIES = [".", ".."].freeze
 
     def pack(package, options = {})
-      directory = package.path
       output_file_name = "#{package.metadata.name}-#{package.metadata.version}.cap"
-      output_directory = File.dirname(directory)
-      cap_file_path = File.join(output_directory, output_file_name)
-
-      if File.exist?(cap_file_path) && !options[:force]
-        raise FileAlreadyExistsError,
-              "Package target already exists, aborting: `#{relative_path_current(cap_file_path)}`"
-      elsif File.exist?(cap_file_path)
-        puts "Package target already exists, overwriting: `#{relative_path_current(cap_file_path)}`"
-        FileUtils.rm_f(cap_file_path)
-      end
+      cap_file_path = File.join(File.dirname(package.path), output_file_name)
+      check_target(cap_file_path, options)
 
       Dir.mktmpdir do |dir|
-        FileUtils.cp_r("#{directory}/.", dir)
-        strip_security_artifacts(dir)
-        new_package = Package.new(dir)
-        new_package.solidify
-        generate_security(new_package)
-        new_cap_file_path = File.join(dir, output_file_name)
-        compress_package(new_package, new_cap_file_path)
-        puts "Package built at: #{new_cap_file_path}"
-        FileUtils.mv(new_cap_file_path, cap_file_path)
+        build_cap(package, dir, output_file_name, options)
+        FileUtils.mv(File.join(dir, output_file_name), cap_file_path)
         puts "Package created: #{relative_path_current(cap_file_path)}"
         return cap_file_path
       end
@@ -100,6 +84,62 @@ module Capsium
     end
 
     private
+
+    # Guards the pack target: without :force an existing .cap aborts,
+    # with :force it is removed first.
+    def check_target(cap_file_path, options)
+      if File.exist?(cap_file_path) && !options[:force]
+        raise FileAlreadyExistsError,
+              "Package target already exists, aborting: `#{relative_path_current(cap_file_path)}`"
+      end
+      return unless File.exist?(cap_file_path)
+
+      puts "Package target already exists, overwriting: `#{relative_path_current(cap_file_path)}`"
+      FileUtils.rm_f(cap_file_path)
+    end
+
+    # Builds the .cap inside the temporary directory: copy, optional
+    # dependency bundling, solidify, security.json, compress.
+    def build_cap(package, directory, output_file_name, options)
+      FileUtils.cp_r("#{package.path}/.", directory)
+      strip_security_artifacts(directory)
+      bundle_dependencies(directory, options) if options[:bundle_deps]
+      new_package = load_packed_package(directory, options)
+      new_package.solidify
+      generate_security(new_package)
+      built_path = File.join(directory, output_file_name)
+      compress_package(new_package, built_path)
+      puts "Package built at: #{built_path}"
+    end
+
+    # Loads the copied package directory for solidification, with the
+    # pack-time store/registry available for dependency resolution.
+    def load_packed_package(directory, options)
+      Package.new(directory, store: options[:store], registry: options[:registry])
+    end
+
+    # Encapsulated packing (`pack --bundle-deps`): resolves every
+    # declared dependency through the store -> registry chain and embeds
+    # the resolved .cap files under packages/ (Capsium::Package::Bundle),
+    # so the packed package activates with no store or registry. Only
+    # the declared dependencies are bundled — the one-level policy: the
+    # parent's metadata.dependencies must list the transitive closure.
+    # Typed dependency errors (DependencyNotFoundError,
+    # UnsatisfiableDependencyError) propagate for unresolvable
+    # dependencies.
+    def bundle_dependencies(directory, options)
+      metadata = Package::Metadata.new(File.join(directory, Package::METADATA_FILE))
+      declared = metadata.dependencies
+      return if declared.empty?
+
+      resolver = Package::DependencyResolver.new(
+        options[:store] || Package::Store.default, registry: options[:registry]
+      )
+      resolutions = declared.map do |guid, range|
+        [guid, resolver.resolve_path(guid, range, chain: [metadata.guid])]
+      end
+      Package::Bundle.write(directory, resolutions)
+    end
 
     # Resolves an entry name against the destination and returns the
     # absolute target path, raising UnsafeEntryError when the entry would
