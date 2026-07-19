@@ -1,0 +1,20 @@
+module Capsium
+  class Package
+    module Testing
+      # The outcome of a test suite run: one Result per test case.
+      class Report
+        attr_reader results: Array[TestCase::Result]
+
+        def initialize: (?Array[TestCase::Result] results) -> void
+
+        def <<: (TestCase::Result result) -> Report
+
+        def ok?: () -> bool
+
+        def failures: () -> Array[TestCase::Result]
+
+        def summary: () -> String
+      end
+    end
+  end
+end

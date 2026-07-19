@@ -29,6 +29,7 @@ module Capsium
     autoload :Storage, "capsium/package/storage"
     autoload :StorageConfig, "capsium/package/storage_config"
     autoload :StorageData, "capsium/package/storage_config"
+    autoload :Testing, "capsium/package/testing"
     autoload :Validator, "capsium/package/validator"
 
     attr_reader :name, :path, :manifest, :metadata, :routes, :storage,
@@ -141,9 +142,7 @@ module Capsium
     # Verifies the declared digital signature (RSA-SHA256) against the
     # checksum-covered payload. True when the package is unsigned (nothing
     # declared) or the signature verifies; false on mismatch.
-    def verify_signature
-      !signed? || Signer.new(@path).verify
-    end
+    def verify_signature = !signed? || Signer.new(@path).verify
 
     def verify_signature!
       Signer.new(@path).verify! if signed?

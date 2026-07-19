@@ -259,6 +259,62 @@ ciphertext was tampered with (GCM authentication). Loading an encrypted
 package without a key raises `Capsium::Package::Cipher::KeyRequiredError`
 — the reactor refuses to serve it.
 
+=== Testing a package
+
+[source,bash]
+----
+capsium package test path-to-package-or-cap
+----
+
+Runs the package's test suite declared in the Capsium testing YAML DSL
+(05x-testing): all `tests/*.yaml` files in the package, each holding a
+top-level `tests` list. Every test has a `name` and a `type`; the four
+supported types:
+
+* `route` — requests the URL path from a reactor started for the run and
+  checks `expected_status`, plus optional `response_contains` (body
+  substring) and `expected_content_type`. Absolute URLs are accepted;
+  only their path (and query) is used.
+* `file` — the file at `path` must exist in the package; optional
+  `contains` checks a content substring.
+* `data_validation` — the rows of `data_file` (format `json` or `yaml`)
+  must validate against the JSON schema at `schema_file`. Array data
+  validates row by row.
+* `config` — `config_file` (format `json` or `yaml`) must exist and
+  parse; the known package configs (`metadata.json`, `manifest.json`,
+  `routes.json`, `storage.json`, `security.json`) are additionally
+  validated against their canonical models.
+
+Example:
+
+[source,yaml]
+----
+tests:
+  - name: Home Route Test
+    type: route
+    url: "/home"
+    expected_status: 200
+    response_contains: "Welcome"
+
+  - name: Config File Exists
+    type: file
+    path: "metadata.json"
+
+  - name: JSON Data Validation
+    type: data_validation
+    format: json
+    data_file: "data/animals.json"
+    schema_file: "data/animals.schema.json"
+
+  - name: Metadata Config Validation
+    type: config
+    format: json
+    config_file: "metadata.json"
+----
+
+Each test is reported as `PASS`/`FAIL` with messages; the command exits
+with status 1 when any test fails (or a test definition is invalid).
+
 == CLI: Reactor
 
 === Starting a reactor on your package
@@ -357,6 +413,12 @@ cipher = Capsium::Package::Cipher.new
 cipher.encrypt('pkg-1.0.0.cap', 'public.pem', 'encrypted.cap')
 cipher.decrypt('encrypted.cap', 'private.pem', 'decrypted.cap')
 Capsium::Package::Cipher.encrypted?('encrypted.cap')  # => true
+
+# Running the package's tests/*.yaml suite (05x-testing DSL)
+report = Capsium::Package::Testing::TestSuite.new(package).run
+report.ok?       # => true/false
+report.failures  # => failed TestCase::Result list
+report.summary   # => "7 tests, 0 failures"
 ----
 
 === Packing and unpacking programmatically

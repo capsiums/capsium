@@ -37,6 +37,19 @@
   `Capsium::Package::Cipher::DecryptionError` (GCM authentication).
 - `Capsium::Packager#transform_cap`/`#with_unpacked_cap` helpers for
   in-place `.cap` transformations.
+- The Capsium package testing YAML DSL (05x-testing): packages declare
+  tests in `tests/*.yaml` files (top-level `tests` list), and
+  `capsium package test PATH` runs them with per-test `PASS`/`FAIL`
+  output, a summary line and proper exit codes. Supported test types:
+  `route` (expected status, optional `response_contains` and
+  `expected_content_type` against a reactor started for the run),
+  `file` (existence, optional `contains`), `data_validation` (dataset
+  rows validated against a JSON schema, JSON and YAML formats) and
+  `config` (configuration files parsed and the known package configs
+  validated against their canonical models). Implemented as an
+  open/closed registry of `Capsium::Package::Testing::TestCase`
+  subclasses run by `Capsium::Package::Testing::TestSuite`; invalid
+  test definitions are reported as failures instead of aborting the run.
 
 ### Changed
 

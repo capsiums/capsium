@@ -1,0 +1,20 @@
+module Capsium
+  class Package
+    module Testing
+      # Loads and runs the package's tests/*.yaml suites (05x-testing).
+      # Route tests are served by a reactor on an ephemeral port for the
+      # duration of the run.
+      class TestSuite
+        TESTS_DIR: String
+
+        attr_reader package: Capsium::Package
+
+        def initialize: (Capsium::Package package) -> void
+
+        def test_files: () -> Array[String]
+
+        def run: () -> Report
+      end
+    end
+  end
+end

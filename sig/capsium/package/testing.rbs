@@ -1,0 +1,7 @@
+module Capsium
+  class Package
+    # Runner for the Capsium package testing YAML DSL (05x-testing).
+    module Testing
+    end
+  end
+end
