@@ -34,14 +34,14 @@ module Capsium
       self
     end
 
-    # The last n entries, oldest first.
-    def last(n)
-      @mutex.synchronize { @entries.last(n) }
+    # The last count entries, oldest first.
+    def last(count)
+      @mutex.synchronize { @entries.last(count) }
     end
 
-    # The last n entries as formatted lines, oldest first.
-    def lines(n)
-      last(n).map(&:line)
+    # The last count entries as formatted lines, oldest first.
+    def lines(count)
+      last(count).map(&:line)
     end
   end
 end

@@ -15,6 +15,8 @@ RSpec.describe Capsium do
     expect(Capsium::Package).to be_a(Class)
     expect(Capsium::Packager).to be_a(Class)
     expect(Capsium::Reactor).to be_a(Class)
+    expect(Capsium::Registry).to be_a(Class)
+    expect(Capsium::LogBuffer).to be_a(Class)
     expect(Capsium::Cli).to be_a(Class)
     expect(Capsium::Converters::Jekyll).to be_a(Class)
   end

@@ -1,0 +1,30 @@
+module Capsium
+  # A small thread-safe ring buffer of timestamped log entries with a
+  # fixed capacity: when full, the oldest entry is dropped.
+  class LogBuffer
+    DEFAULT_CAPACITY: Integer
+
+    # One buffer entry: a UTC timestamp and a message.
+    class Entry
+      def self.new: (timestamp: Time, message: String) -> void
+
+      def timestamp: () -> Time
+      def message: () -> String
+
+      # "2026-07-19T15:00:00Z message"
+      def line: () -> String
+    end
+
+    attr_reader capacity: Integer
+
+    def initialize: (?capacity: Integer capacity) -> void
+
+    def add: (String message, ?timestamp: Time timestamp) -> LogBuffer
+
+    # The last n entries, oldest first.
+    def last: (Integer count) -> Array[Entry]
+
+    # The last n entries as formatted lines, oldest first.
+    def lines: (Integer count) -> Array[String]
+  end
+end

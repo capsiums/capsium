@@ -27,7 +27,7 @@ RSpec.describe Capsium::Reactor::Authenticator do
   # Calls the reactor's handler directly (rack-free) and captures the
   # response, in the style of the reactor introspection specs.
   def request_to(app, path, headers: {})
-    request = instance_double(WEBrick::HTTPRequest, path: path,
+    request = instance_double(WEBrick::HTTPRequest, path: path, query: {},
                                                     request_method: "GET")
     allow(request).to receive(:[]) { |name| headers[name] }
     response = instance_double(WEBrick::HTTPResponse)

@@ -152,10 +152,12 @@ RSpec.describe "Composite packages (ARCHITECTURE.md section 4a)" do
     after { package.cleanup }
 
     def request_to(app, path)
-      request = instance_double(WEBrick::HTTPRequest, path: path)
+      request = instance_double(WEBrick::HTTPRequest, path: path,
+                                                      request_method: "GET")
       response = instance_double(WEBrick::HTTPResponse)
       result = { headers: {} }
       allow(response).to receive(:status=) { |value| result[:status] = value }
+      allow(response).to receive(:status) { result[:status] }
       allow(response).to receive(:[]=) do |name, value|
         result[:headers][name] = value
       end

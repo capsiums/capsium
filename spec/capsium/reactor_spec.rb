@@ -3,7 +3,9 @@
 require "spec_helper"
 require "digest"
 require "json"
+require "net/http"
 require "openssl"
+require "socket"
 require "time"
 require "yaml"
 
@@ -253,10 +255,11 @@ RSpec.describe Capsium::Reactor do
     let(:app) { described_class.new(package: package, do_not_listen: true) }
 
     # Calls the handler directly (rack-free) and captures the response.
-    def introspect(app, path, method: "GET", query: {})
+    def introspect(app, path, method: "GET", query: {}, headers: {})
       request = instance_double(WEBrick::HTTPRequest, path: path,
                                                       request_method: method,
                                                       query: query)
+      allow(request).to receive(:[]) { |name| headers[name] }
       response = instance_double(WEBrick::HTTPResponse)
       result = { headers: {} }
       allow(response).to receive(:status=) { |value| result[:status] = value }
@@ -443,6 +446,205 @@ RSpec.describe Capsium::Reactor do
         expect(result[:status]).to eq(404)
         expect(result[:headers]["Content-Type"]).to eq("text/plain")
       end
+    end
+
+    describe "reactor-level endpoints (07-reactor follow-ons)" do
+      it "mounts the reactor-level and per-package endpoints" do
+        app
+        Capsium::Reactor::Introspection::REACTOR_PATHS.each do |path|
+          expect(mock_server).to have_received(:mount_proc).with(path)
+        end
+        expect(mock_server).to have_received(:mount_proc)
+          .with(Capsium::Reactor::Introspection::PACKAGE_MOUNT)
+      end
+
+      describe "GET /introspect/status" do
+        it "reports a running reactor" do
+          result = introspect(app, "/introspect/status")
+
+          expect(result[:status]).to eq(200)
+          expect(result[:headers]["Content-Type"]).to eq("application/json")
+          body = JSON.parse(result[:body])
+          expect(body["status"]).to eq("running")
+          expect(body["packagesLoaded"]).to eq(1)
+          expect(body["uptime"]).to be >= 0
+        end
+
+        it "returns 405 for non-GET methods" do
+          result = introspect(app, "/introspect/status", method: "POST")
+
+          expect(result[:status]).to eq(405)
+          expect(result[:headers]["Content-Type"]).to eq("text/plain")
+        end
+      end
+
+      describe "GET /introspect/config" do
+        it "reports the reactor configuration" do
+          body = JSON.parse(introspect(app, "/introspect/config")[:body])
+
+          expect(body["port"]).to eq(Capsium::Reactor::DEFAULT_PORT)
+          expect(body["cacheControl"]).to eq("public, max-age=31536000")
+          expect(body["authEnabled"]).to be(false)
+          expect(body["storeDir"]).to be_nil
+          expect(body["registry"]).to be_nil
+        end
+
+        it "reports store and registry, redacting URL credentials" do
+          Dir.mktmpdir do |dir|
+            store_dir = File.join(dir, "store")
+            FileUtils.mkdir_p(store_dir)
+            configured = described_class.new(
+              package: package, do_not_listen: true, store: store_dir,
+              registry: "https://user:secret@example.com/registry"
+            )
+
+            body = JSON.parse(introspect(configured, "/introspect/config")[:body])
+
+            expect(body["storeDir"]).to eq(store_dir)
+            expect(body["registry"]).to eq("https://example.com/registry")
+          end
+        end
+      end
+
+      describe "GET /introspect/metrics" do
+        it "counts requests by status" do
+          2.times { introspect(app, "/") }
+          introspect(app, "/nonexistent")
+
+          body = JSON.parse(introspect(app, "/introspect/metrics")[:body])
+
+          expect(body["requestsTotal"]).to eq(3)
+          expect(body["requestsByStatus"]).to eq("200" => 2, "404" => 1)
+          expect(body["uptime"]).to be >= 0
+        end
+      end
+
+      context "with authentication enabled" do
+        let(:package_name) { "auth-package" }
+
+        def basic(username, password)
+          { "Authorization" => "Basic #{[[username, password].join(':')].pack('m0')}" }
+        end
+
+        it "challenges unauthenticated introspection requests" do
+          expect(introspect(app, "/introspect/status")[:status]).to eq(401)
+          expect(introspect(app, "/package/auth-package/logs")[:status]).to eq(401)
+        end
+
+        it "serves introspection with valid credentials" do
+          result = introspect(app, "/introspect/status",
+                              headers: basic("alice", "wonderland"))
+
+          expect(result[:status]).to eq(200)
+        end
+      end
+    end
+
+    describe "per-package endpoints (07-reactor follow-ons)" do
+      describe "GET /package/:id/status" do
+        it "reports the served package" do
+          result = introspect(app, "/package/data-package/status")
+
+          expect(result[:status]).to eq(200)
+          expect(result[:headers]["Content-Type"]).to eq("application/json")
+          body = JSON.parse(result[:body])
+          expect(body).to include("package" => "data-package",
+                                  "version" => "0.1.0",
+                                  "status" => "loaded", "valid" => true)
+        end
+
+        it "returns 404 for any other package id" do
+          result = introspect(app, "/package/other/status")
+
+          expect(result[:status]).to eq(404)
+          expect(result[:headers]["Content-Type"]).to eq("text/plain")
+        end
+      end
+
+      describe "GET /package/:id/metadata" do
+        it "returns the package metadata" do
+          body = JSON.parse(introspect(app, "/package/data-package/metadata")[:body])
+
+          expect(body).to include("name" => "data-package",
+                                  "version" => "0.1.0",
+                                  "description" => "A package with data",
+                                  "author" => "Ribose Inc.")
+          expect(body["guid"]).to be_a(String)
+        end
+      end
+
+      describe "GET /package/:id/logs" do
+        it "returns recent serving events, oldest first" do
+          introspect(app, "/")
+          introspect(app, "/nonexistent")
+
+          body = JSON.parse(introspect(app, "/package/data-package/logs")[:body])
+
+          expect(body["package"]).to eq("data-package")
+          expect(body["logs"].first).to include("reactor started")
+          expect(body["logs"].last(2).map { |line| line.split(" ", 2).last })
+            .to eq(["GET / -> 200", "GET /nonexistent -> 404"])
+        end
+
+        it "honors the ?lines= query parameter" do
+          3.times { introspect(app, "/") }
+
+          body = JSON.parse(
+            introspect(app, "/package/data-package/logs",
+                       query: { "lines" => "1" })[:body]
+          )
+
+          expect(body["logs"].size).to eq(1)
+          expect(body["logs"].first).to include("GET / -> 200")
+        end
+
+        it "returns 405 for non-GET methods" do
+          result = introspect(app, "/package/data-package/logs", method: "POST")
+
+          expect(result[:status]).to eq(405)
+        end
+      end
+    end
+
+    describe "live server on an ephemeral port" do
+      it "serves the reactor-level and per-package endpoints" do
+        allow(WEBrick::HTTPServer).to receive(:new).and_call_original
+        probe = TCPServer.new("127.0.0.1", 0)
+        port = probe.addr[1]
+        probe.close
+        live = described_class.new(package: package, port: port)
+        thread = Thread.new { live.server.start }
+
+        status = http_get(port, "/introspect/status")
+        expect(status.code).to eq("200")
+        expect(status["Content-Type"]).to include("application/json")
+        expect(JSON.parse(status.body)["status"]).to eq("running")
+
+        expect(http_get(port, "/").code).to eq("200")
+
+        metrics = JSON.parse(http_get(port, "/introspect/metrics").body)
+        expect(metrics["requestsTotal"]).to be >= 2
+        expect(metrics["requestsByStatus"]["200"]).to be >= 2
+
+        logs = JSON.parse(http_get(port, "/package/data-package/logs").body)
+        expect(logs["logs"].last).to include("GET /introspect/metrics -> 200")
+
+        wrong = http_get(port, "/package/nope/status")
+        expect(wrong.code).to eq("404")
+      ensure
+        live&.server&.shutdown
+        thread&.join(5)
+      end
+    end
+
+    def http_get(port, path)
+      uri = URI("http://127.0.0.1:#{port}#{path}")
+      20.times do
+        return Net::HTTP.get_response(uri)
+      rescue SystemCallError
+        sleep(0.1)
+      end
+      Net::HTTP.get_response(uri)
     end
   end
 end
