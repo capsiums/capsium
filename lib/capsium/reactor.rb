@@ -12,10 +12,14 @@ module Capsium
     autoload :Htpasswd, "capsium/reactor/htpasswd"
     autoload :Introspection, "capsium/reactor/introspection"
     autoload :Metrics, "capsium/reactor/metrics"
+    autoload :Mount, "capsium/reactor/mount"
+    autoload :MountConflictError, "capsium/reactor/mount"
     autoload :OAuth2, "capsium/reactor/oauth2"
+    autoload :Responses, "capsium/reactor/responses"
     autoload :Serving, "capsium/reactor/serving"
     autoload :Session, "capsium/reactor/session"
 
+    include Responses
     include Serving
 
     DEFAULT_PORT = 8864
@@ -23,16 +27,19 @@ module Capsium
 
     attr_reader :package, :package_path, :routes, :port, :cache_control,
                 :server, :server_thread, :introspection, :authenticator,
-                :store, :registry, :started_at, :metrics, :log_buffer
+                :store, :registry, :started_at, :metrics, :log_buffer,
+                :mounts
 
-    def initialize(package:, port: DEFAULT_PORT,
+    # Serves one or more packages: either a single `package` (directory,
+    # .cap file or Package, mounted at "/") or a list of `mounts`
+    # (Reactor::Mount) resolved by longest-prefix matching.
+    def initialize(package: nil, mounts: nil, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
                    store: nil, deploy: nil, registry: nil)
-      @package = package
-      @package = Package.new(package, store: store, registry: registry) if package.is_a?(String)
-      @package_path = @package.path
       @store = store
       @registry = registry
+      @mounts = mounts || [Mount.new(path: Mount::ROOT_PATH, package: package,
+                                     store: store, registry: registry)]
       @port = port
       @cache_control = cache_control
       @started_at = Time.now
@@ -42,8 +49,8 @@ module Capsium
       setup_server(do_not_listen)
       load_state
       mount_routes
-      @log_buffer.add("reactor started: #{@package.name} " \
-                      "#{@package.metadata.version} on port #{@port}")
+      @log_buffer.add("reactor started: " \
+                      "#{@mounts.map(&:summary).join(', ')} on port #{@port}")
     end
 
     def serve
@@ -61,9 +68,9 @@ module Capsium
     end
 
     def mount_routes
-      paths = @routes.config.routes.map(&:serving_path) +
-              Introspection::PATHS + Introspection::REACTOR_PATHS +
+      paths = Introspection::PATHS + Introspection::REACTOR_PATHS +
               @authenticator.endpoints
+      paths.concat(@mounts.flat_map(&:server_paths))
       paths.each do |path|
         @server.mount_proc(path.to_s) { |req, res| handle_request(req, res) }
       end
@@ -76,10 +83,15 @@ module Capsium
     def restart_server
       @server.shutdown
       @server_thread&.join
-      load_package
+      load_packages
       setup_server(false)
       mount_routes
       @server_thread = start_server
+    end
+
+    # Cleans up every mounted package (Package#cleanup for all).
+    def cleanup
+      @mounts.each { |mount| mount.package.cleanup }
     end
 
     private
@@ -114,16 +126,20 @@ module Capsium
       @server_thread.join
     end
 
-    def load_package
-      @package = Package.new(@package_path, store: @store, registry: @registry)
+    def load_packages
+      @mounts.each do |mount|
+        @log_buffer.add("package reloaded: #{mount.reload.name}")
+      end
       load_state
-      @log_buffer.add("package reloaded: #{@package.name}")
     end
 
     def load_state
-      @routes = @package.routes
-      @merged_view = @package.merged_view
-      @introspection = Introspection.new(@package, reactor: self)
+      root = root_mount
+      @package = root.package
+      @package_path = @package.path
+      @routes = root.routes
+      @merged_view = root.merged_view
+      @introspection = Introspection.new(@mounts.map(&:package), reactor: self)
       @authenticator = Authenticator.new(
         @package.authentication,
         deploy: @deploy_config,
@@ -131,6 +147,23 @@ module Capsium
         base_url: @deploy_config.base_url,
         state_file: File.join(Dir.tmpdir, "capsium-#{@package.name}-session-secret")
       )
+    end
+
+    # The mount answering a request path: longest matching prefix wins.
+    def resolve_mount(path)
+      mounts_by_length.find { |mount| mount.matches?(path) }
+    end
+
+    def mounts_by_length
+      @mounts_by_length ||= @mounts.sort_by { |mount| -mount.path.length }
+    end
+
+    # The root ("/") mount, or the first mount when nothing is mounted
+    # at the root: its package drives the single-package readers
+    # (package, routes, merged_view), authentication and the
+    # reactor-level introspection.
+    def root_mount
+      @mounts.find { |mount| mount.path == Mount::ROOT_PATH } || @mounts.first
     end
 
     def dispatch_request(request, response)
@@ -143,15 +176,10 @@ module Capsium
       return @authenticator.challenge(response) if @authenticator.enabled? && identity.nil?
       return serve_introspection(request, response) if @introspection.endpoint?(request.path)
 
-      route = @routes.resolve(request.path)
-      return respond_not_found(response) unless route
+      mount = resolve_mount(request.path)
+      return respond_not_found(response) unless mount
 
-      case @authenticator.authorize(identity, route.access_control)
-      when :unauthenticated then return @authenticator.challenge(response)
-      when :forbidden then return respond_forbidden(response)
-      end
-
-      serve_route(route, response)
+      serve_mounted_request(mount, identity, request, response)
     end
 
     # One request metric and one log line per served request.
@@ -169,23 +197,7 @@ module Capsium
       report = @introspection.report_for(request.path, params: request.query)
       return respond_not_found(response) if report.nil?
 
-      response.status = 200
-      response["Content-Type"] = "application/json"
-      response.body = JSON.generate(report)
-    end
-
-    def respond_not_found(response) = respond_text(response, 404, "Not Found")
-
-    def respond_forbidden(response) = respond_text(response, 403, "Forbidden")
-
-    def respond_not_implemented(response) = respond_text(response, 501, "Not Implemented")
-
-    def respond_method_not_allowed(response) = respond_text(response, 405, "Method Not Allowed")
-
-    def respond_text(response, status, body)
-      response.status = status
-      response["Content-Type"] = "text/plain"
-      response.body = body
+      respond_json(response, 200, report)
     end
   end
 end

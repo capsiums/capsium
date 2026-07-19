@@ -3,6 +3,7 @@ module Capsium
   # Monitoring HTTP API (ARCHITECTURE.md section 7) and reloads the
   # package on filesystem changes.
   class Reactor
+    include Responses
     include Serving
 
     DEFAULT_PORT: Integer
@@ -22,8 +23,10 @@ module Capsium
     attr_reader started_at: Time
     attr_reader metrics: Metrics
     attr_reader log_buffer: Capsium::LogBuffer
+    attr_reader mounts: Array[Mount]
 
-    def initialize: (package: Package | String package, ?port: Integer port,
+    def initialize: (?package: (Package | String)? package, ?mounts: Array[Mount]? mounts,
+                     ?port: Integer port,
                      ?cache_control: String? cache_control,
                      ?do_not_listen: bool do_not_listen,
                      ?store: (Package::Store | String)? store,
@@ -37,5 +40,7 @@ module Capsium
     def mount_routes: () -> void
 
     def restart_server: () -> Thread
+
+    def cleanup: () -> void
   end
 end

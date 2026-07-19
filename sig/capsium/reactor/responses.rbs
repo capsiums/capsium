@@ -1,0 +1,23 @@
+module Capsium
+  class Reactor
+    # Plain HTTP response writers shared by the reactor dispatch, the
+    # route serving and the API handlers (data, GraphQL, save).
+    module Responses
+      private
+
+      def respond_not_found: (untyped response) -> untyped
+
+      def respond_forbidden: (untyped response) -> untyped
+
+      def respond_not_implemented: (untyped response) -> untyped
+
+      def respond_method_not_allowed: (untyped response) -> untyped
+
+      def respond_text: (untyped response, Integer status, String body) -> untyped
+
+      def respond_json: (untyped response, Integer status, untyped body) -> untyped
+
+      def respond_error: (untyped response, Integer status, String message, ?messages: Array[String]? messages) -> untyped
+    end
+  end
+end

@@ -1,8 +1,9 @@
 module Capsium
   class Reactor
     # Monitoring HTTP API reports (ARCHITECTURE.md section 7):
-    # package-level /api/v1/introspect/*, reactor-level /introspect/*
-    # and per-package /package/:id/* endpoints.
+    # /api/v1/introspect/* aggregates every mounted package, plus
+    # reactor-level /introspect/* and per-package /package/:id/*
+    # endpoints resolved by package name.
     class Introspection
       METADATA_PATH: String
       ROUTES_PATH: String
@@ -18,9 +19,12 @@ module Capsium
       DEFAULT_LOG_LINES: Integer
       MAX_LOG_LINES: Integer
 
-      attr_reader package: Package
+      attr_reader packages: Array[Package]
 
-      def initialize: (Package package, ?reactor: Reactor? reactor) -> void
+      def initialize: (Array[Package] packages, ?reactor: Reactor? reactor) -> void
+
+      # The first mounted package (the single-package view).
+      def package: () -> Package
 
       def endpoint?: (String path) -> bool
 

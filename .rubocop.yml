@@ -32,9 +32,11 @@ Metrics/ModuleLength:
     - 'spec/**/*'
 
 # Spec helpers take the parameters the fixtures need; the reactor
-# constructor takes one keyword per deploy-time concern.
+# constructor takes one keyword per deploy-time concern (keyword args
+# are self-documenting and not counted).
 Metrics/ParameterLists:
   Max: 7
+  CountKeywordArgs: false
   Exclude:
     - 'spec/**/*'
 

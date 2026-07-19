@@ -7,11 +7,12 @@ require "uri"
 
 module Capsium
   class Reactor
-    # Monitoring HTTP API reports for the package this reactor serves
+    # Monitoring HTTP API reports for the packages this reactor serves
     # (ARCHITECTURE.md section 7): the package-level
-    # /api/v1/introspect/* endpoints plus the 07-reactor follow-ons —
-    # reactor-level /introspect/* (status, config, metrics) and
-    # per-package /package/:id/* (status, metadata, logs).
+    # /api/v1/introspect/* endpoints aggregate ALL mounted packages, the
+    # 07-reactor follow-ons add reactor-level /introspect/* (status,
+    # config, metrics) and per-package /package/:id/* (status, metadata,
+    # logs) resolved by package name.
     class Introspection
       METADATA_PATH = "/api/v1/introspect/metadata"
       ROUTES_PATH = "/api/v1/introspect/routes"
@@ -28,18 +29,24 @@ module Capsium
       # Per-package endpoints: "/package/<name>/status|metadata|logs".
       # PACKAGE_MOUNT is the mount point (WEBrick longest-prefix
       # matching routes all "/package/..." requests to the reactor);
-      # the reactor serves one package, so any other name is a 404.
+      # the name resolves against every mounted package, anything else
+      # is a 404.
       PACKAGE_MOUNT = "/package"
       PACKAGE_PATH_PATTERN = %r{\A/package/(?<name>[^/]+)/(?<report>status|metadata|logs)\z}
       DEFAULT_LOG_LINES = 100
       MAX_LOG_LINES = 1000
 
-      attr_reader :package
+      attr_reader :packages
 
-      def initialize(package, reactor: nil)
-        @package = package
+      # The packages this reactor serves (one per mount; ARCHITECTURE.md
+      # section 7 introspection aggregates all of them).
+      def initialize(packages, reactor: nil)
+        @packages = packages
         @reactor = reactor
       end
+
+      # The first mounted package (the single-package view).
+      def package = @packages.first
 
       def endpoint?(path)
         PATHS.include?(path) || package_endpoint?(path) ||
@@ -62,41 +69,33 @@ module Capsium
       end
 
       def metadata_report
-        metadata = package.metadata
-        { packages: [{
-          name: metadata.name,
-          version: metadata.version,
-          author: metadata.author,
-          description: metadata.description
-        }] }
+        { packages: @packages.map { |pkg| metadata_entry(pkg) } }
       end
 
       def routes_report
-        entries = package.routes.config.routes.map do |route|
-          { method: route.http_method || "GET", path: route.path }
+        entries = @packages.map do |pkg|
+          routes = pkg.routes.config.routes.map do |route|
+            { method: route.http_method || "GET", path: route.path }
+          end
+          { package: pkg.name, routes: routes }
         end
-        { routes: [{ package: package.name, routes: entries }] }
+        { routes: entries }
       end
 
       def content_hashes_report
-        { contentHashes: [{ package: package.name, hash: content_hash }] }
+        entries = @packages.map do |pkg|
+          { package: pkg.name, hash: content_hash(pkg) }
+        end
+        { contentHashes: entries }
       end
 
       def content_validity_report
-        errors = package.verify_integrity
-        entry = {
-          package: package.name,
-          valid: errors.empty?,
-          lastChecked: Time.now.utc.iso8601,
-          signed: package.signed?,
-          encrypted: package.encrypted?
-        }
-        entry[:signatureValid] = package.verify_signature if package.signed?
-        entry[:reason] = errors.map(&:message).join("; ") unless errors.empty?
-        { contentValidity: [entry] }
+        { contentValidity: @packages.map { |pkg| content_validity_entry(pkg) } }
       end
 
-      def status_report = { status: "running", uptime: uptime, packagesLoaded: 1 }
+      def status_report
+        { status: "running", uptime: uptime, packagesLoaded: @packages.size }
+      end
 
       # Reactor configuration; secrets (deploy.json, registry URL
       # credentials) are never exposed.
@@ -118,38 +117,49 @@ module Capsium
 
       def package_report_for(path, params)
         match = PACKAGE_PATH_PATTERN.match(path)
-        return nil unless match && match[:name] == package.name
+        return nil unless match
+
+        pkg = @packages.find { |candidate| candidate.name == match[:name] }
+        return nil unless pkg
 
         case match[:report]
-        when "status" then package_status_report
-        when "metadata" then package_metadata_report
-        when "logs" then package_logs_report(params)
+        when "status" then package_status_report(pkg)
+        when "metadata" then package_metadata_report(pkg)
+        when "logs" then package_logs_report(pkg, params)
         end
       end
 
-      def package_status_report
-        {
-          package: package.name,
-          version: package.metadata.version,
-          status: "loaded",
-          valid: package.verify_integrity.empty?
-        }
+      def metadata_entry(pkg)
+        metadata = pkg.metadata
+        { name: metadata.name, version: metadata.version,
+          author: metadata.author, description: metadata.description }
       end
 
-      def package_metadata_report
-        metadata = package.metadata
-        {
-          name: metadata.name,
-          version: metadata.version,
-          description: metadata.description,
-          author: metadata.author,
-          guid: metadata.guid
-        }
+      def content_validity_entry(pkg)
+        errors = pkg.verify_integrity
+        entry = { package: pkg.name, valid: errors.empty?,
+                  lastChecked: Time.now.utc.iso8601,
+                  signed: pkg.signed?, encrypted: pkg.encrypted? }
+        entry[:signatureValid] = pkg.verify_signature if pkg.signed?
+        entry[:reason] = errors.map(&:message).join("; ") unless errors.empty?
+        entry
       end
 
-      def package_logs_report(params)
+      def package_status_report(pkg)
+        { package: pkg.name, version: pkg.metadata.version,
+          status: "loaded", valid: pkg.verify_integrity.empty? }
+      end
+
+      def package_metadata_report(pkg)
+        metadata = pkg.metadata
+        { name: metadata.name, version: metadata.version,
+          description: metadata.description, author: metadata.author,
+          guid: metadata.guid }
+      end
+
+      def package_logs_report(pkg, params)
         lines = @reactor ? @reactor.log_buffer.lines(log_line_count(params)) : []
-        { package: package.name, logs: lines }
+        { package: pkg.name, logs: lines }
       end
 
       def log_line_count(params)
@@ -186,11 +196,11 @@ module Capsium
       # For directory sources there is no blob, so the hash covers a
       # canonical (sorted-key) JSON serialization of the package content
       # checksums — the same data security.json integrityChecks carry.
-      def content_hash
-        cap_file = package.cap_file_path
+      def content_hash(pkg)
+        cap_file = pkg.cap_file_path
         return Digest::SHA256.file(cap_file).hexdigest if cap_file
 
-        checksums = Package::Security.checksums_for(package.path)
+        checksums = Package::Security.checksums_for(pkg.path)
         Digest::SHA256.hexdigest(JSON.generate(checksums))
       end
     end
