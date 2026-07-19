@@ -64,8 +64,11 @@ module Capsium
         entry = {
           package: package.name,
           valid: errors.empty?,
-          lastChecked: Time.now.utc.iso8601
+          lastChecked: Time.now.utc.iso8601,
+          signed: package.signed?,
+          encrypted: package.encrypted?
         }
+        entry[:signatureValid] = package.verify_signature if package.signed?
         entry[:reason] = errors.map(&:message).join("; ") unless errors.empty?
         { contentValidity: [entry] }
       end

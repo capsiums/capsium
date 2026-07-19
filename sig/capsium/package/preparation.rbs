@@ -14,6 +14,10 @@ module Capsium
       def decrypt_cap_file: (String | Pathname source_path) -> String
 
       def determine_load_type: (String | Pathname path) -> Symbol
+
+      # Whether the package was loaded from an encrypted source
+      # (ARCHITECTURE.md section 6b layout).
+      def encrypted?: () -> bool
     end
   end
 end

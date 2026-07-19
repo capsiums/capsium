@@ -44,6 +44,12 @@ module Capsium
         File.extname(path) == ".cap" ? :cap_file : :unsaved
       end
 
+      # Whether the package was loaded from an encrypted source
+      # (ARCHITECTURE.md section 6b layout).
+      def encrypted?
+        Cipher.encrypted?(@original_path)
+      end
+
       private
 
       def package_stem(file_path)

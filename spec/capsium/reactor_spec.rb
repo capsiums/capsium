@@ -3,6 +3,7 @@
 require "spec_helper"
 require "digest"
 require "json"
+require "openssl"
 require "time"
 require "yaml"
 
@@ -359,6 +360,59 @@ RSpec.describe Capsium::Reactor do
           entry = JSON.parse(result[:body]).fetch("contentValidity").first
           expect(entry["valid"]).to be(false)
           expect(entry["reason"]).to include("index.html")
+        end
+      end
+
+      it "reports signature and encryption status" do
+        result = introspect(app, "/api/v1/introspect/content-validity")
+
+        entry = JSON.parse(result[:body]).fetch("contentValidity").first
+        expect(entry["signed"]).to be(false)
+        expect(entry["encrypted"]).to be(false)
+        expect(entry).not_to have_key("signatureValid")
+      end
+
+      it "reports a valid signature for a signed package" do
+        Dir.mktmpdir do |dir|
+          copy = File.join(dir, "bare-package")
+          FileUtils.cp_r(File.join(fixtures_path, "bare-package"), copy)
+          key_path = File.join(dir, "key.pem")
+          File.write(key_path, OpenSSL::PKey::RSA.generate(2048).to_pem)
+          Capsium::Package::Signer.sign_package(copy, key_path)
+          signed_app = described_class.new(package: Capsium::Package.new(copy),
+                                           do_not_listen: true)
+
+          result = introspect(signed_app, "/api/v1/introspect/content-validity")
+
+          entry = JSON.parse(result[:body]).fetch("contentValidity").first
+          expect(entry["signed"]).to be(true)
+          expect(entry["signatureValid"]).to be(true)
+        end
+      end
+
+      it "reports a package loaded from an encrypted source as encrypted" do
+        Dir.mktmpdir do |dir|
+          key = OpenSSL::PKey::RSA.generate(2048)
+          public_key_path = File.join(dir, "public.pem")
+          private_key_path = File.join(dir, "private.pem")
+          File.write(public_key_path, key.public_key.to_pem)
+          File.write(private_key_path, key.to_pem)
+          encrypted = File.join(dir, "encrypted.cap")
+          Capsium::Package::Cipher.new.encrypt(
+            File.join(fixtures_path, "bare-package-0.1.0.cap"),
+            public_key_path, encrypted
+          )
+          encrypted_package = Capsium::Package.new(encrypted,
+                                                   decryption_key: private_key_path)
+          encrypted_app = described_class.new(package: encrypted_package,
+                                              do_not_listen: true)
+
+          result = introspect(encrypted_app, "/api/v1/introspect/content-validity")
+
+          entry = JSON.parse(result[:body]).fetch("contentValidity").first
+          expect(entry["encrypted"]).to be(true)
+        ensure
+          encrypted_package&.cleanup
         end
       end
     end
