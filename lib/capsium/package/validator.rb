@@ -58,7 +58,7 @@ module Capsium
       def manifest_check
         manifest = Manifest.new(metadata_path(MANIFEST_FILE))
         missing = manifest.resources.keys.reject do |path|
-          File.file?(File.join(@package_path, path))
+          merged_view.resolve(path) || File.file?(File.join(@package_path, path))
         end
         result("manifest", missing.map { |path| "resource missing on disk: #{path}" })
       rescue StandardError => e
@@ -86,7 +86,7 @@ module Capsium
         if route.dataset_route? && !route.path.start_with?(Route::DATASET_PATH_PREFIX)
           problems << "dataset route #{route.path} not under #{Route::DATASET_PATH_PREFIX}"
         end
-        route.validate_target(@package_path, storage)
+        route.validate_target(@package_path, storage, merged_view: merged_view)
         problems
       rescue Error => e
         problems + [e.message]
@@ -95,7 +95,7 @@ module Capsium
       def index_problems(routes)
         index = routes.config.index
         return ["index route is missing"] if index.nil?
-        unless File.file?(File.join(@package_path, index))
+        unless merged_view.resolve(index) || File.file?(File.join(@package_path, index))
           return ["index missing on disk: #{index}"]
         end
         return [] if File.extname(index).downcase == ".html"
@@ -109,6 +109,17 @@ module Capsium
         result("storage", problems)
       rescue StandardError => e
         failure("storage", ["storage.json is not valid: #{e.message}"])
+      end
+
+      # The merged content view (ARCHITECTURE.md section 5a) over the
+      # package being validated; layered and tombstoned resources resolve
+      # the same way the reactor resolves them.
+      def merged_view
+        @merged_view ||= MergedView.new(
+          @package_path,
+          storage: Storage.new(metadata_path(STORAGE_FILE)),
+          manifest: Manifest.new(metadata_path(MANIFEST_FILE))
+        )
       end
 
       def security_check

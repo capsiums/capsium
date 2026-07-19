@@ -13,8 +13,10 @@ module Capsium
     autoload :EncryptionConfig, "capsium/package/encryption_config"
     autoload :EncryptionEnvelope, "capsium/package/encryption_config"
     autoload :IntegrityChecks, "capsium/package/security_config"
+    autoload :LayerConfig, "capsium/package/storage_config"
     autoload :Manifest, "capsium/package/manifest"
     autoload :ManifestConfig, "capsium/package/manifest_config"
+    autoload :MergedView, "capsium/package/merged_view"
     autoload :Metadata, "capsium/package/metadata"
     autoload :MetadataData, "capsium/package/metadata_config"
     autoload :Repository, "capsium/package/metadata_config"
@@ -31,6 +33,9 @@ module Capsium
     autoload :StorageData, "capsium/package/storage_config"
     autoload :Testing, "capsium/package/testing"
     autoload :Validator, "capsium/package/validator"
+    autoload :Verification, "capsium/package/verification"
+
+    include Verification
 
     attr_reader :name, :path, :manifest, :metadata, :routes, :storage,
                 :security, :load_type
@@ -109,6 +114,15 @@ module Capsium
 
     def datasets = storage.datasets
 
+    # The merged content view across the storage layers (ARCHITECTURE.md
+    # section 5a); exported_only gives the dependent-package view (section 4a).
+    def merged_view(exported_only: false)
+      @merged_views ||= {}
+      @merged_views[exported_only] ||=
+        MergedView.new(@path, storage: @storage, manifest: @manifest,
+                              exported_only: exported_only)
+    end
+
     # The .cap file this package was loaded from, or nil when loaded
     # from a directory.
     def cap_file_path
@@ -123,29 +137,6 @@ module Capsium
       return :directory if File.directory?(path)
 
       File.extname(path) == ".cap" ? :cap_file : :unsaved
-    end
-
-    # Verifies the package against security.json (ARCHITECTURE.md section
-    # 6). Returns a list of typed errors; empty when no security.json is
-    # present or all checksums match.
-    def verify_integrity
-      @security.present? ? @security.verify(@path) : []
-    end
-
-    def verify_integrity!
-      @security.verify!(@path) if @security.present?
-    end
-
-    # Whether security.json declares a digital signature for this package.
-    def signed? = @security.signed?
-
-    # Verifies the declared digital signature (RSA-SHA256) against the
-    # checksum-covered payload. True when the package is unsigned (nothing
-    # declared) or the signature verifies; false on mismatch.
-    def verify_signature = !signed? || Signer.new(@path).verify
-
-    def verify_signature!
-      Signer.new(@path).verify! if signed?
     end
 
     private

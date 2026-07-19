@@ -92,6 +92,23 @@ RSpec.describe Capsium::Reactor do
                     "text/plain", nil
   end
 
+  context "with a layered package (ARCHITECTURE.md section 5a)" do
+    # updates/ is the topmost layer and wins over base/ and content/.
+    it_behaves_like "a reactor", "layered-package", "/shared.css", 200,
+                    "text/css", "updates/shared.css"
+    it_behaves_like "a reactor", "layered-package", "/extra.js", 200,
+                    "text/javascript", "updates/extra.js"
+    it_behaves_like "a reactor", "layered-package", "/base-only.txt", 200,
+                    "text/plain", "base/base-only.txt"
+    it_behaves_like "a reactor", "layered-package", "/local.txt", 200,
+                    "text/plain", "content/local.txt"
+    # index.html exists in content/ but is tombstoned in updates/.
+    it_behaves_like "a reactor", "layered-package", "/index.html", 404,
+                    "text/plain", nil
+    it_behaves_like "a reactor", "layered-package", "/", 404,
+                    "text/plain", nil
+  end
+
   describe "#mount_routes" do
     let(:package_name) { "bare-package" }
     let(:package_path) { File.join(fixtures_path, package_name) }

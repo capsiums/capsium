@@ -36,7 +36,7 @@ module Capsium
 
       def mime: (Manifest manifest) -> String?
 
-      def validate_target: (String package_path, Storage storage) -> void
+      def validate_target: (String package_path, Storage storage, ?merged_view: MergedView? merged_view) -> void
 
       def to_json: (*untyped args) -> String
       def to_hash: () -> Hash[String, untyped]

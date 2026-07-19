@@ -1,0 +1,9 @@
+{
+  "name": "layered-package",
+  "version": "0.1.0",
+  "description": "A package with layered storage",
+  "guid": "https://github.com/capsiums/layered-package",
+  "uuid": "6f9d4a2c-1b3e-4f5a-8c7d-9e0f1a2b3c4d",
+  "author": "Ribose Inc.",
+  "license": "MIT"
+}
