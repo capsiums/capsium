@@ -8,7 +8,6 @@ module Capsium
   autoload :Converters, "capsium/converters"
   autoload :Package, "capsium/package"
   autoload :Packager, "capsium/packager"
-  autoload :Protector, "capsium/protector"
   autoload :Reactor, "capsium/reactor"
   autoload :ThorExt, "capsium/thor_ext"
 end

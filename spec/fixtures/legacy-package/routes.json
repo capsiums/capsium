@@ -3,8 +3,6 @@
     { "path": "/", "target": { "file": "content/index.html" } },
     { "path": "/index", "target": { "file": "content/index.html" } },
     { "path": "/index.html", "target": { "file": "content/index.html" } },
-    { "path": "/example.css", "target": { "file": "content/example.css" } },
-    { "path": "/example.js", "target": { "file": "content/example.js" } },
-    { "path": "/api/v1/data/animals", "target": { "dataset": "animals"} }
+    { "path": "/api/v1/data/animals", "target": { "dataset": "animals" } }
   ]
 }

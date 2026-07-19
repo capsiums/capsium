@@ -7,14 +7,17 @@ require "webrick"
 module Capsium
   class Reactor
     DEFAULT_PORT = 8864
+    DEFAULT_CACHE_CONTROL = "public, max-age=31536000"
 
-    attr_reader :package, :package_path, :routes, :port, :server,
-                :server_thread
+    attr_reader :package, :package_path, :routes, :port, :cache_control,
+                :server, :server_thread
 
-    def initialize(package:, port: DEFAULT_PORT, do_not_listen: false)
+    def initialize(package:, port: DEFAULT_PORT,
+                   cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false)
       @package = package.is_a?(String) ? Package.new(package) : package
       @package_path = @package.path
       @port = port
+      @cache_control = cache_control
       setup_server(do_not_listen)
       @routes = @package.routes
       mount_routes
@@ -29,7 +32,7 @@ module Capsium
     def handle_request(request, response)
       route = @routes.resolve(request.path)
       if route
-        serve_target(route.target, response)
+        serve_route(route, response)
       else
         respond_not_found(response)
       end
@@ -89,23 +92,31 @@ module Capsium
       @routes = @package.routes
     end
 
-    def serve_target(target, response)
-      if target.dataset
-        serve_dataset(target.dataset, response)
-      else
-        serve_file(target, response)
+    def serve_route(route, response)
+      case route.kind
+      when :dataset then serve_dataset(route.dataset, response)
+      when :resource then serve_file(route, response)
+      else respond_not_implemented(response)
       end
     end
 
-    def serve_file(target, response)
-      content_path = target.fs_path(@package.manifest)
+    def serve_file(route, response)
+      content_path = route.fs_path(@package.path)
       if content_path && File.exist?(content_path)
         response.status = 200
-        response["Content-Type"] = target.mime(@package.manifest)
+        response["Content-Type"] = route.mime(@package.manifest) || "application/octet-stream"
+        headers_for(route).each { |name, value| response[name] = value }
         response.body = File.read(content_path)
       else
         respond_not_found(response)
       end
+    end
+
+    def headers_for(route)
+      return route.headers if route.headers
+      return {} unless @cache_control
+
+      { "Cache-Control" => @cache_control }
     end
 
     def serve_dataset(dataset_name, response)
@@ -123,6 +134,12 @@ module Capsium
       response.status = 404
       response["Content-Type"] = "text/plain"
       response.body = "Not Found"
+    end
+
+    def respond_not_implemented(response)
+      response.status = 501
+      response["Content-Type"] = "text/plain"
+      response.body = "Not Implemented"
     end
   end
 end

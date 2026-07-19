@@ -25,8 +25,10 @@ module Capsium
 
       Dir.mktmpdir do |dir|
         FileUtils.cp_r("#{directory}/.", dir)
+        FileUtils.rm_f(File.join(dir, Package::SECURITY_FILE))
         new_package = Package.new(dir)
         new_package.solidify
+        generate_security(new_package)
         new_cap_file_path = File.join(dir, output_file_name)
         compress_package(new_package, new_cap_file_path)
         puts "Package built at: #{new_cap_file_path}"
@@ -47,8 +49,11 @@ module Capsium
     end
 
     def compress_package(package, cap_file)
+      entries = Dir[File.join(package.path, "**", "**")].reject do |file|
+        File.expand_path(file) == File.expand_path(cap_file)
+      end
       Zip::File.open(cap_file, Zip::File::CREATE) do |zipfile|
-        Dir[File.join(package.path, "**", "**")].each do |file|
+        entries.each do |file|
           zipfile.add(file.sub("#{package.path}/", ""), file)
         end
       end
@@ -56,6 +61,13 @@ module Capsium
 
     def relative_path_current(absolute_path)
       Pathname.new(absolute_path).relative_path_from(Dir.pwd).to_s
+    end
+
+    private
+
+    def generate_security(package)
+      security = Package::Security.generate(package.path)
+      security.save_to_file
     end
   end
 end

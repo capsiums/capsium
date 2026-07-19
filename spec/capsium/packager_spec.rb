@@ -30,6 +30,19 @@ RSpec.describe Capsium::Packager do
       expect(File).to exist(cap_file)
     end
 
+    it "writes a security.json with valid checksums into the .cap file" do
+      package = Capsium::Package.new(temporary_package_dir)
+      cap_file = described_class.new.pack(package, force: true)
+      extract_dir = File.join(tmpdir, "extracted_security_package")
+      described_class.new.unpack(cap_file, extract_dir)
+
+      security = Capsium::Package::Security.new(
+        File.join(extract_dir, "security.json")
+      )
+      expect(security.present?).to be(true)
+      expect(security.verify(extract_dir)).to be_empty
+    end
+
     it "extracts the .cap file into a directory" do
       package = Capsium::Package.new(temporary_package_dir)
       cap_file = described_class.new.pack(package, force: true)
@@ -90,45 +103,26 @@ RSpec.describe Capsium::Packager do
   end
 
   context "with a bare package" do
-    let(:package_name) { "bare_package" }
-    let(:package_version) { "0.1.0" }
-    let(:expected_files) do
-      [
-        "content/index.html",
-        "content/example.css",
-        "content/example.js",
-        "metadata.json"
-      ]
-    end
-
-    it_behaves_like "a packager", "bare_package", "0.1.0", [
-      "content/index.html",
-      "content/example.css",
-      "content/example.js",
-      "metadata.json"
-    ]
-  end
-
-  context "with a data package" do
-    let(:package_name) { "data_package" }
-    let(:package_version) { "0.1.0" }
-    let(:expected_files) do
-      [
-        "content/index.html",
-        "content/example.css",
-        "content/example.js",
-        "metadata.json",
-        "data/animals.yaml",
-        "data/animals_schema.yaml",
-        "storage.json"
-      ]
-    end
-
-    it_behaves_like "a packager", "data_package", "0.1.0", [
+    it_behaves_like "a packager", "bare-package", "0.1.0", [
       "content/index.html",
       "content/example.css",
       "content/example.js",
       "metadata.json",
+      "manifest.json",
+      "routes.json",
+      "security.json"
+    ]
+  end
+
+  context "with a data package" do
+    it_behaves_like "a packager", "data-package", "0.1.0", [
+      "content/index.html",
+      "content/example.css",
+      "content/example.js",
+      "metadata.json",
+      "manifest.json",
+      "routes.json",
+      "security.json",
       "data/animals.yaml",
       "data/animals_schema.yaml",
       "storage.json"

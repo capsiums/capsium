@@ -61,37 +61,37 @@ RSpec.describe Capsium::Reactor do
   end
 
   context "with a bare package" do
-    it_behaves_like "a reactor", "bare_package", "/", 200, "text/html",
+    it_behaves_like "a reactor", "bare-package", "/", 200, "text/html",
                     "content/index.html"
-    it_behaves_like "a reactor", "bare_package", "/index", 200, "text/html",
+    it_behaves_like "a reactor", "bare-package", "/index", 200, "text/html",
                     "content/index.html"
-    it_behaves_like "a reactor", "bare_package", "/index.html", 200,
+    it_behaves_like "a reactor", "bare-package", "/index.html", 200,
                     "text/html", "content/index.html"
-    it_behaves_like "a reactor", "bare_package", "/example.css", 200,
+    it_behaves_like "a reactor", "bare-package", "/example.css", 200,
                     "text/css", "content/example.css"
-    it_behaves_like "a reactor", "bare_package", "/example.js", 200,
+    it_behaves_like "a reactor", "bare-package", "/example.js", 200,
                     "text/javascript", "content/example.js"
-    it_behaves_like "a reactor", "bare_package", "/nonexistent", 404,
+    it_behaves_like "a reactor", "bare-package", "/nonexistent", 404,
                     "text/plain", nil
   end
 
   context "with a data package" do
-    it_behaves_like "a reactor", "data_package", "/", 200, "text/html",
+    it_behaves_like "a reactor", "data-package", "/", 200, "text/html",
                     "content/index.html"
-    it_behaves_like "a reactor", "data_package", "/index", 200, "text/html",
+    it_behaves_like "a reactor", "data-package", "/index", 200, "text/html",
                     "content/index.html"
-    it_behaves_like "a reactor", "data_package", "/index.html", 200,
+    it_behaves_like "a reactor", "data-package", "/index.html", 200,
                     "text/html", "content/index.html"
-    it_behaves_like "a reactor", "data_package", "/example.css", 200,
+    it_behaves_like "a reactor", "data-package", "/example.css", 200,
                     "text/css", "content/example.css"
-    it_behaves_like "a reactor", "data_package", "/example.js", 200,
+    it_behaves_like "a reactor", "data-package", "/example.js", 200,
                     "text/javascript", "content/example.js"
-    it_behaves_like "a reactor", "data_package", "/nonexistent", 404,
+    it_behaves_like "a reactor", "data-package", "/nonexistent", 404,
                     "text/plain", nil
   end
 
   describe "#mount_routes" do
-    let(:package_name) { "bare_package" }
+    let(:package_name) { "bare-package" }
     let(:package_path) { File.join(fixtures_path, package_name) }
     let(:package) { Capsium::Package.new(package_path) }
     let(:app) { described_class.new(package: package, do_not_listen: true) }
@@ -103,7 +103,7 @@ RSpec.describe Capsium::Reactor do
   end
 
   describe "#restart_server" do
-    let(:package_name) { "bare_package" }
+    let(:package_name) { "bare-package" }
     let(:package_path) { File.join(fixtures_path, package_name) }
     let(:package) { Capsium::Package.new(package_path) }
     let(:app) { described_class.new(package: package, do_not_listen: true) }
@@ -116,7 +116,7 @@ RSpec.describe Capsium::Reactor do
   end
 
   describe "#handle_request" do
-    let(:package_name) { "bare_package" }
+    let(:package_name) { "bare-package" }
     let(:package_path) { File.join(fixtures_path, package_name) }
     let(:package) { Capsium::Package.new(package_path) }
     let(:app) { described_class.new(package: package, do_not_listen: true) }
@@ -144,8 +144,28 @@ RSpec.describe Capsium::Reactor do
       it "returns the correct body content" do
         app.handle_request(request, response)
         expect(response).to have_received(:body=).with(read_fixture_file.call(
-                                                         "bare_package", "content/index.html"
+                                                         "bare-package", "content/index.html"
                                                        ))
+      end
+
+      it "returns cache headers for static resources" do
+        app.handle_request(request, response)
+        expect(response).to have_received(:[]=).with(
+          "Cache-Control", "public, max-age=31536000"
+        )
+      end
+    end
+
+    context "when cache control is disabled" do
+      let(:app) do
+        described_class.new(package: package, cache_control: nil,
+                            do_not_listen: true)
+      end
+
+      it "does not set a Cache-Control header" do
+        app.handle_request(request, response)
+        expect(response).not_to have_received(:[]=).with("Cache-Control",
+                                                         anything)
       end
     end
 
@@ -172,7 +192,7 @@ RSpec.describe Capsium::Reactor do
     end
 
     context "when the route targets a dataset" do
-      let(:package_name) { "data_package" }
+      let(:package_name) { "data-package" }
       let(:request) do
         instance_double(WEBrick::HTTPRequest, path: "/api/v1/data/animals")
       end

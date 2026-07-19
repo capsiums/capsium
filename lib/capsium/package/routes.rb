@@ -11,13 +11,12 @@ module Capsium
 
       def_delegators :@config, :to_hash
 
-      ROUTES_FILE = "routes.json"
-      DEFAULT_INDEX_TARGET = "content/index.html"
       INDEX_ROUTE = "/"
+      INDEX_RESOURCE = "content/index.html"
+      DATASET_ROUTE_PREFIX = "/api/v1/data/"
 
       def initialize(path, manifest, storage)
         @path = path
-        @dir = File.dirname(path)
         @manifest = manifest
         @storage = storage
         @config = if File.exist?(path)
@@ -25,8 +24,6 @@ module Capsium
                   else
                     generate_routes
                   end
-        validate_index_path(@config.resolve(INDEX_ROUTE)&.target&.file)
-        validate
       end
 
       def resolve(url_path)
@@ -34,12 +31,10 @@ module Capsium
       end
 
       def add_route(route, target)
-        validate_route_target(route, target)
         @config.add(route, target)
       end
 
       def update_route(route, updated_route, updated_target)
-        validate_route_target(updated_route, updated_target)
         @config.update(route, updated_route, updated_target)
       end
 
@@ -47,50 +42,55 @@ module Capsium
         @config.remove(route)
       end
 
-      def validate
-        @config.routes.each do |route|
-          route.target.validate(@manifest, @storage)
-        end
-      end
-
       def to_json(*_args)
-        @config.sort!.to_json
+        @config.to_json
       end
 
       def save_to_file(output_path = @path)
         File.write(output_path, to_json)
       end
 
+      # Auto-generation (ARCHITECTURE.md section 4): every manifest
+      # resource gets a route at its path relative to content/; HTML files
+      # get two routes (basename without extension and full filename); the
+      # index HTML additionally gets "/"; every dataset in storage gets
+      # /api/v1/data/<id>. Output is deterministic (sorted by path).
+      def generate_routes
+        routes = resource_routes + dataset_routes
+        RoutesConfig.new(index: index_resource, routes: routes.sort_by(&:path))
+      end
+
       private
 
-      def generate_routes
-        r = RoutesConfig.new
-        manifest.config.sort!.content.each_with_object({}) do |data_item, _hash|
-          relative_path = data_item.file.sub(/^#{Package::CONTENT_DIR}/o, "")
-          r.add(relative_path, data_item.file)
+      def index_resource
+        INDEX_RESOURCE if @manifest.resources.key?(INDEX_RESOURCE)
+      end
 
-          # Ensure the index route is included
-          if File.basename(relative_path, ".*") == "index"
-            r.add("/index", data_item.file)
-            r.add("/", data_item.file)
-          end
+      def resource_routes
+        @manifest.resources.keys.flat_map do |resource_path|
+          routes_for_resource(resource_path)
+        end.uniq(&:path)
+      end
+
+      def routes_for_resource(resource_path)
+        url_path = resource_path.sub(%r{\A#{Package::CONTENT_DIR}/}o, "")
+        routes = [Route.new(path: "/#{url_path}", resource: resource_path)]
+        return routes unless File.extname(resource_path) == ".html"
+
+        basename = File.basename(url_path, ".html")
+        routes << Route.new(path: "/#{basename}", resource: resource_path)
+        routes << Route.new(path: INDEX_ROUTE, resource: resource_path) if index?(resource_path)
+        routes
+      end
+
+      def index?(resource_path)
+        resource_path == INDEX_RESOURCE
+      end
+
+      def dataset_routes
+        @storage.dataset_names.map do |name|
+          Route.new(path: "#{DATASET_ROUTE_PREFIX}#{name}", dataset: name)
         end
-
-        r
-      end
-
-      def validate_index_path(index_path)
-        return unless index_path
-
-        target_path = @manifest.path_to_content_file(index_path)
-        raise "Index file does not exist: #{target_path}" unless File.exist?(target_path)
-        return if File.extname(target_path).downcase == ".html"
-
-        raise "Index file is not an HTML file: #{target_path}"
-      end
-
-      def validate_route_target(route, target)
-        # Add any necessary validation logic for the route and target
       end
     end
   end

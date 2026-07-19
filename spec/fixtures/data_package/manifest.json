@@ -1,9 +1,0 @@
-{
-  "content": [
-    { "file": "content/index.html", "mime": "text/html" },
-    { "file": "content/example.css", "mime": "text/css" },
-    { "file": "content/example.js", "mime": "text/javascript" },
-    { "file": "data/animals.yaml", "mime": "application/x-yaml" },
-    { "file": "data/animals_schema.yaml", "mime": "application/x-yaml" }
-  ]
-}

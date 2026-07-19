@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "forwardable"
-require "shale"
 
 module Capsium
   class Package
@@ -10,12 +9,9 @@ module Capsium
 
       extend Forwardable
 
-      def_delegator :@config, :to_json
-      def_delegator :@config, :to_hash
-      def_delegator :@config, :name
-      def_delegator :@config, :version
-      def_delegator :@config, :description # Delegate description method
-      def_delegator :@config, :dependencies
+      def_delegators :@config, :to_json, :to_hash, :name, :version,
+                     :description, :guid, :uuid, :author, :license,
+                     :repository, :dependencies
 
       def initialize(path)
         @path = path

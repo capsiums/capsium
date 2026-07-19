@@ -3,7 +3,7 @@
 require "spec_helper"
 
 RSpec.describe Capsium::Converters::Jekyll do
-  let(:package_file) { "spec/fixtures/bare_package-0.1.0.cap" }
+  let(:package_file) { "spec/fixtures/bare-package-0.1.0.cap" }
   let(:output_directory) { Dir.mktmpdir }
 
   after do
