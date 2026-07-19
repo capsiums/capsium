@@ -33,6 +33,7 @@ RSpec.describe Capsium::Reactor::Authenticator do
     response = instance_double(WEBrick::HTTPResponse)
     result = { headers: {} }
     allow(response).to receive(:status=) { |value| result[:status] = value }
+    allow(response).to receive(:status) { result[:status] }
     allow(response).to receive(:[]=) do |name, value|
       result[:headers][name] = value
     end

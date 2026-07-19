@@ -71,7 +71,7 @@ module Capsium
       private
 
       def content_files
-        Dir.glob(File.join(@content_path, "**", "*")).select do |file|
+        Dir.glob(File.join(@content_path, "**", "*"), File::FNM_DOTMATCH).select do |file|
           File.file?(file)
         end
       end
