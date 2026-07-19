@@ -138,7 +138,7 @@ RSpec.describe Capsium::Packager do
     def build_cap(path, entry_names)
       payload = File.join(File.dirname(path), "payload.txt")
       File.write(payload, "pwned")
-      Zip::File.open(path, Zip::File::CREATE) do |zipfile|
+      Zip::File.open(path, create: true) do |zipfile|
         entry_names.each { |name| zipfile.add(name, payload) }
       end
       path
