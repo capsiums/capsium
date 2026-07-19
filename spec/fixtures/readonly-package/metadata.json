@@ -1,0 +1,10 @@
+{
+  "name": "readonly-package",
+  "version": "0.1.0",
+  "description": "A read-only package with a collection",
+  "guid": "https://github.com/capsiums/readonly-package",
+  "uuid": "123e4567-e89b-12d3-a456-426614174011",
+  "author": "Ribose Inc.",
+  "license": "MIT",
+  "readOnly": true
+}

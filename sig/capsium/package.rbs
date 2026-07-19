@@ -53,7 +53,8 @@ module Capsium
     # The merged content view across the storage layers (ARCHITECTURE.md
     # section 5a); exported_only gives the dependent-package view (section 4a).
     # Resolved dependencies act as read-only layers below all own layers.
-    def merged_view: (?exported_only: bool exported_only) -> MergedView
+    # extra_layers stack above everything (the reactor's writable overlay).
+    def merged_view: (?exported_only: bool exported_only, ?extra_layers: Array[MergedView::Layer] extra_layers) -> MergedView
 
     # The .cap file this package was loaded from, or nil when loaded
     # from a directory.

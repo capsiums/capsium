@@ -1,0 +1,69 @@
+module Capsium
+  class Reactor
+    # The writable top overlay layer of a mounted package
+    # (ARCHITECTURE.md section 5a): an append-only record of writes in
+    # the reactor workdir (content files, tombstones, per-dataset
+    # mutation logs). The immutable package never changes on disk.
+    class Overlay
+      # Base class for the typed overlay errors the APIs map to HTTP
+      # statuses.
+      class Error < Capsium::Error
+      end
+
+      # The addressed item does not exist in the merged collection (404).
+      class ItemNotFoundError < Error
+      end
+
+      # The write conflicts with existing state (409).
+      class ConflictError < Error
+      end
+
+      # The dataset cannot take item writes or the path is unsafe.
+      class UnsupportedDatasetError < Error
+      end
+
+      # The candidate document violates the dataset's JSON schema (422).
+      class SchemaViolationError < Error
+        attr_reader messages: Array[String]
+
+        def initialize: (Array[String] messages) -> void
+      end
+
+      TOMBSTONE_FILE: String
+      SAFE_NAME_PATTERN: Regexp
+
+      attr_reader root: String
+      attr_reader tombstones: Set[String]
+
+      def initialize: (root: String root) -> void
+
+      def content_root: () -> String
+
+      def data_root: () -> String
+
+      # The overlay as the topmost MergedView layer.
+      def layer: () -> Package::MergedView::Layer
+
+      def write_content: (String content_relative, String body) -> void
+
+      def delete_content: (String content_relative) -> void
+
+      # The dataset as served: base data merged with the mutation log.
+      def dataset_data: (Package::Dataset dataset) -> untyped
+
+      # The merged item collection.
+      def items: (Package::Dataset dataset) -> Array[untyped]
+
+      def item: (Package::Dataset dataset, String id) -> untyped
+
+      def append_item: (Package::Dataset dataset, untyped item) -> String
+
+      def replace_item: (Package::Dataset dataset, String id, untyped item) -> void
+
+      def delete_item: (Package::Dataset dataset, String id) -> nil
+
+      # The item id convention: an "id" field, else nil (positional).
+      def item_id: (untyped item) -> String?
+    end
+  end
+end

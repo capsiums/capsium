@@ -11,7 +11,7 @@ module Capsium
 
       def_delegators :@config, :to_json, :to_hash, :name, :version,
                      :description, :guid, :uuid, :author, :license,
-                     :repository, :dependencies
+                     :repository, :dependencies, :read_only
 
       def initialize(path)
         @path = path

@@ -29,7 +29,8 @@ module Capsium
       def initialize: (String package_path, storage: Storage storage,
                        manifest: Manifest manifest,
                        ?dependency_views: Array[[String, MergedView]] dependency_views,
-                       ?exported_only: bool exported_only) -> void
+                       ?exported_only: bool exported_only,
+                       ?extra_layers: Array[Layer] extra_layers) -> void
 
       # The absolute filesystem path serving a resource reference: a
       # package-relative content path ("content/app.js"), or a dependency

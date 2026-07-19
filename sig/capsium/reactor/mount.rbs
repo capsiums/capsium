@@ -31,6 +31,7 @@ module Capsium
 
       attr_reader path: String
       attr_reader package: Package
+      attr_reader overlay: Overlay?
 
       def self.parse_spec: (String spec) -> Entry
 
@@ -42,7 +43,13 @@ module Capsium
 
       def self.normalize_path: (String? path) -> String
 
-      def initialize: (path: String? path, package: (Package | String) package, ?store: (Package::Store | String)? store, ?registry: (Capsium::Registry | String)? registry) -> void
+      def initialize: (path: String? path, package: (Package | String) package, ?store: (Package::Store | String)? store, ?registry: (Capsium::Registry | String)? registry, ?workdir: String? workdir) -> void
+
+      # Attaches the reactor workdir (creates the writable overlay).
+      def attach_workdir: (String workdir) -> void
+
+      # Writable unless the package declares "readOnly": true.
+      def writable?: () -> bool
 
       def matches?: (String request_path) -> bool
 
@@ -51,6 +58,13 @@ module Capsium
       def routes: () -> Package::Routes
 
       def merged_view: () -> Package::MergedView
+
+      # The dataset as served: base data merged with overlay mutations.
+      def dataset_data: (Package::Dataset dataset) -> untyped
+
+      def data_api: () -> DataApi
+
+      def content_api: () -> ContentApi
 
       # The one-line "name version" summary used in reactor logs.
       def summary: () -> String

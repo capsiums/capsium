@@ -67,6 +67,17 @@ module Capsium
         problems
       end
 
+      # Schema validation of an arbitrary candidate document (used by
+      # the reactor's writable overlay before persisting a mutation):
+      # human-readable schema problems, empty when valid or when the
+      # dataset has no JSON schema.
+      def schema_errors_for(data)
+        return [] unless @config.schema_file && @config.schema_type == "json-schema"
+        return [] unless File.file?(schema_path)
+
+        JSON::Validator.fully_validate(load_schema, JSON.parse(JSON.generate(data)))
+      end
+
       private
 
       def schema_validation_errors

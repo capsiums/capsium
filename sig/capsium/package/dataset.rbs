@@ -19,6 +19,10 @@ module Capsium
 
       def validate: () -> bool
 
+      # Schema validation of an arbitrary candidate document (used by
+      # the reactor's writable overlay); empty when valid or schema-less.
+      def schema_errors_for: (untyped data) -> Array[String]
+
       # File-existence and schema validations; empty when valid.
       def validation_errors: () -> Array[String]
 
