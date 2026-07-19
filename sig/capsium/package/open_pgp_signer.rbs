@@ -1,0 +1,46 @@
+module Capsium
+  class Package
+    # Signs and verifies Capsium packages with OpenPGP detached
+    # signatures (ARCHITECTURE.md section 6a) through librnp. Parallel
+    # to the RSA-SHA256/X.509 Signer with the same construction
+    # semantics and the same error taxonomy.
+    class OpenPgpSigner
+      ALGORITHM: String
+      CERTIFICATE_TYPE: String
+      HASH: String
+
+      # Package-relative name of the embedded armored OpenPGP public key
+      # recorded in security.json digitalSignatures.publicKey.
+      PUBLIC_KEY_FILE: String
+
+      attr_reader package_path: String
+
+      def initialize: (String package_path) -> void
+
+      # Signs a package directory in place, or a .cap file (unpacked,
+      # signed, recompressed), with the OpenPGP secret key at
+      # secret_key_path. Returns the signed path.
+      def self.sign_package: (String path, String secret_key_path) -> String
+
+      # Verifies the declared OpenPGP signature of a package directory
+      # or .cap file (false on mismatch; raises typed
+      # Signer::SignatureError subclasses on structural problems).
+      def self.verify_package: (String path, ?String? public_key_path) -> bool
+
+      # Signs the package directory in place: embeds the armored public
+      # key, regenerates security.json (checksums plus digitalSignatures
+      # with certificateType "OpenPGP") and writes the armored detached
+      # OpenPGP signature to signature.sig. Returns the path of the
+      # written signature file.
+      def sign: (String secret_key_path) -> String
+
+      # True when the declared signature verifies against the payload;
+      # false on mismatch.
+      def verify: (?String? public_key_path) -> bool
+
+      def verify!: (?String? public_key_path) -> bool
+
+      def signed?: () -> bool
+    end
+  end
+end

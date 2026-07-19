@@ -19,13 +19,17 @@ module Capsium
       end
     end
 
-    # The "digitalSignatures" object of security.json. Signing is a later
-    # phase; the model parses the canonical fields only.
+    # The "digitalSignatures" object of security.json. certificateType
+    # selects the signature scheme: absent means RSA-SHA256 (X.509),
+    # "OpenPGP" an OpenPGP signature (the publicKey then holds an
+    # armored OpenPGP public key).
     class DigitalSignatures < Lutaml::Model::Serializable
+      attribute :certificate_type, :string
       attribute :public_key, :string
       attribute :signature_file, :string
 
       json do
+        map "certificateType", to: :certificate_type
         map "publicKey", to: :public_key
         map "signatureFile", to: :signature_file
       end

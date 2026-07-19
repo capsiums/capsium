@@ -1,0 +1,15 @@
+module Capsium
+  class Package
+    # Encrypts and decrypts whole Capsium packages with OpenPGP key
+    # management (ARCHITECTURE.md section 6b) through librnp: the DEK
+    # travels as an armored OpenPGP message in the signature.json
+    # envelope (keyManagement "OpenPGP"); the AES-256-GCM content
+    # encryption and the encrypted .cap layout are the Cipher's.
+    class OpenPgpCipher < Cipher
+      KEY_MANAGEMENT: String
+
+      # The OpenPGP symmetric cipher protecting the DEK message.
+      CIPHER_NAME: String
+    end
+  end
+end

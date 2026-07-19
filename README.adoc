@@ -42,6 +42,23 @@ Alternatively, you can install the gem directly using:
 gem install capsium
 ----
 
+=== OpenPGP support (librnp)
+
+OpenPGP signatures and encryption are provided through the `rnp` gem
+(a declared dependency) bound to the *librnp* shared library, which
+must be installed separately:
+
+[source,bash]
+----
+brew install rnp    # homebrew-core formula, provides librnp
+# or build librnp from source: https://github.com/rnpgp/rnp
+----
+
+The binding is loaded lazily, only when an OpenPGP feature is used, so
+the gem works without librnp until then; OpenPGP commands raise a
+typed `Capsium::Package::OpenPgp::OpenPgpUnavailableError` with
+installation guidance when the library is missing.
+
 == What is a Capsium package?
 
 A Capsium package is a structured collection of content, data, metadata, and
@@ -217,16 +234,45 @@ run:
 openssl dgst -sha256 -verify signature.pub.pem -signature signature.sig payload.bin
 ----
 
+==== OpenPGP signatures
+
+[source,bash]
+----
+capsium package sign path-to-package-or-cap --openpgp --key secret.asc
+----
+
+With `--openpgp`, `--key` is an OpenPGP secret key file (armored or
+binary, auto-detected) and the package is signed through librnp with the
+same canonical payload: `signature.sig` holds the armored detached
+OpenPGP signature (SHA-256), the armored public key is embedded as
+`signature.pub.asc`, and `security.json` records the scheme:
+
+[source,json]
+----
+{
+  "security": {
+    "digitalSignatures": {
+      "certificateType": "OpenPGP",
+      "publicKey": "signature.pub.asc",
+      "signatureFile": "signature.sig"
+    }
+  }
+}
+----
+
 === Verifying a package signature
 
 [source,bash]
 ----
-capsium package verify-signature path-to-package-or-cap [--cert cert-or-public-key.pem]
+capsium package verify-signature path-to-package-or-cap [--cert cert-or-public-key] [--openpgp]
 ----
 
 Verifies the declared signature against the package contents (using the
 embedded public key, or the given certificate/public key) and exits with
 status 1 when the package is unsigned or the signature does not match.
+The signature scheme is auto-detected from the declared
+`certificateType` (RSA-SHA256/X.509 by default, OpenPGP when recorded);
+`--openpgp` forces OpenPGP verification with an OpenPGP public key.
 Packages that declare a signature are also verified automatically on load —
 a mismatch raises `Capsium::Package::Signer::SignatureMismatchError`, so a
 tampered signed package cannot be served by the reactor.
@@ -260,22 +306,50 @@ recipient's public key using RSA-OAEP with SHA-256:
 }
 ----
 
-The OCB/OpenPGP alternatives mentioned by the standard are intentionally
-not implemented.
+==== OpenPGP encryption
+
+[source,bash]
+----
+capsium package encrypt path-to-package-or-cap --openpgp --recipient public.asc -o encrypted.cap
+----
+
+With `--openpgp`, the DEK is protected as an armored OpenPGP message to
+the recipient's public key (through librnp) instead of the RSA-OAEP
+wrap; the content encryption and layout are identical, and the
+envelope records the key management:
+
+[source,json]
+----
+{
+  "encryption": {
+    "algorithm": "AES-256-GCM",
+    "keyManagement": "OpenPGP",
+    "message": "<armored OpenPGP message containing the DEK>",
+    "iv": "<base64>",
+    "authTag": "<base64>"
+  }
+}
+----
+
+The OCB alternative mentioned by the standard remains out of scope.
 
 === Decrypting a package
 
 [source,bash]
 ----
-capsium package decrypt encrypted.cap --private-key private.pem [-o decrypted.cap]
+capsium package decrypt encrypted.cap [--private-key private.pem | --key secret.asc] [--openpgp] [-o decrypted.cap]
 ----
 
-Decrypts an encrypted package with the recipient's RSA private key and
+Decrypts an encrypted package with the recipient's private key and
 writes the plaintext `.cap` (default output: `<name>-decrypted.cap`).
-Decryption fails with a typed error when the key does not match or the
-ciphertext was tampered with (GCM authentication). Loading an encrypted
-package without a key raises `Capsium::Package::Cipher::KeyRequiredError`
-— the reactor refuses to serve it.
+The key management is auto-detected from the envelope — `--private-key`
+for RSA-OAEP, `--key` for an OpenPGP secret key (armored or binary);
+`--openpgp` forces the OpenPGP cipher. Decryption fails with a typed
+error when the key does not match or the ciphertext was tampered with
+(GCM authentication). Loading an encrypted package without a key raises
+`Capsium::Package::Cipher::KeyRequiredError` — the reactor refuses to
+serve it. `Capsium::Package.new(path, decryption_key:)` accepts either
+key format transparently.
 
 === Testing a package
 
@@ -846,6 +920,14 @@ task (`bundle exec rake`), or run them individually:
 bundle exec rubocop
 bundle exec rbs -I sig validate
 ----
+
+The OpenPGP specs run only when librnp is available (`brew install rnp`,
+or built from https://github.com/rnpgp/rnp); without it they skip
+cleanly, so environments without librnp (e.g. CI images that do not
+install it) stay green. The CI workflow is the shared
+cimas/metanorma `generic-rake` workflow and does not install librnp —
+install it in a custom workflow step (macOS: `brew install rnp`) to run
+the OpenPGP specs there.
 
 == License
 

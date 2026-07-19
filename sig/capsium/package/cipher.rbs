@@ -32,6 +32,15 @@ module Capsium
       # encrypted package, i.e. contains package.enc.
       def self.encrypted?: (String | Pathname path) -> bool
 
+      # The keyManagement declared by the encryption envelope of the
+      # path (.cap file or uncompressed directory), or nil when the
+      # envelope is absent or unreadable.
+      def self.key_management: (String | Pathname path) -> String?
+
+      # The cipher instance matching the envelope's keyManagement:
+      # OpenPgpCipher for OpenPGP envelopes, the RSA cipher otherwise.
+      def self.for_encrypted: (String | Pathname path) -> Cipher
+
       # Encrypts the package at source_path (a .cap file, or a package
       # directory which is packed first) for the recipient's RSA public
       # key (or X.509 certificate) and writes the encrypted .cap to
@@ -44,7 +53,9 @@ module Capsium
       def decrypt: (String | Pathname encrypted_path, String private_key_path, String output_path) -> String
 
       # Decrypts an encrypted package into a fresh temporary directory
-      # and returns the directory path.
+      # and returns the directory path. The cipher is selected from the
+      # envelope's keyManagement: OpenPGP envelopes decrypt through
+      # OpenPgpCipher, everything else through the RSA cipher.
       def self.decrypt_to_directory: (String | Pathname source_path, String private_key_path) -> String
     end
   end
