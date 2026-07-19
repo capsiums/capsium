@@ -26,6 +26,7 @@ module Capsium
 
       def run
         Dir.mktmpdir do |dir|
+          @workdir = dir
           @package_path = prepare(dir)
           [metadata_check, manifest_check, routes_check,
            storage_check, security_check, content_check]
@@ -113,13 +114,37 @@ module Capsium
 
       # The merged content view (ARCHITECTURE.md section 5a) over the
       # package being validated; layered and tombstoned resources resolve
-      # the same way the reactor resolves them.
+      # the same way the reactor resolves them. For encapsulated
+      # packages the bundled dependencies (packages/, recursively) act
+      # as read-only exported layers exactly as at activation, so
+      # fallthrough routes referencing dependency content validate.
       def merged_view
         @merged_view ||= MergedView.new(
           @package_path,
           storage: Storage.new(metadata_path(STORAGE_FILE)),
-          manifest: Manifest.new(metadata_path(MANIFEST_FILE))
+          manifest: Manifest.new(metadata_path(MANIFEST_FILE)),
+          dependency_views: dependency_views(@package_path)
         )
+      end
+
+      # The [guid, exported MergedView] layers of the dependencies
+      # bundled under the package directory's packages/ (empty when the
+      # package embeds no bundle).
+      def dependency_views(package_path)
+        bundle = Bundle.new(package_path)
+        return [] unless bundle.present?
+
+        bundle.entries.map do |guid, entry|
+          dependency_dir = File.join(@workdir, "bundles", guid.gsub(/[^A-Za-z0-9.-]/, "_"))
+          Packager.new.unpack(entry.file, dependency_dir)
+          [guid, MergedView.new(
+            dependency_dir,
+            storage: Storage.new(File.join(dependency_dir, STORAGE_FILE)),
+            manifest: Manifest.new(File.join(dependency_dir, MANIFEST_FILE)),
+            dependency_views: dependency_views(dependency_dir),
+            exported_only: true
+          )]
+        end
       end
 
       def security_check

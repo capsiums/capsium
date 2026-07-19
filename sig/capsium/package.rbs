@@ -38,7 +38,8 @@ module Capsium
                      ?decryption_key: String? decryption_key,
                      ?store: (Store | String)? store,
                      ?registry: (Capsium::Registry | String)? registry,
-                     ?dependency_chain: Array[String] dependency_chain) -> void
+                     ?dependency_chain: Array[String] dependency_chain,
+                     ?bundle: Bundle? bundle) -> void
 
     def solidify: () -> void
 

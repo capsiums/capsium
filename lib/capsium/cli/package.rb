@@ -50,9 +50,14 @@ module Capsium
 
       desc "pack PATH_TO_PACKAGE_FOLDER", "Package the files into the package"
       option :force, type: :boolean, default: false, aliases: "-f"
+      option :bundle_deps, type: :boolean, default: false, aliases: "--bundle",
+                           desc: "Embed the resolved dependencies under packages/ " \
+                                 "so the .cap activates with no store or registry"
+      option :store, type: :string, desc: "Package store directory (default: CAPSIUM_STORE)"
+      option :registry, type: :string, desc: "Registry reference (default: CAPSIUM_REGISTRY)"
 
       def pack(path_to_package)
-        package = Capsium::Package.new(path_to_package)
+        package = Capsium::Package.new(path_to_package, store: options[:store])
         packager = Capsium::Packager.new
         packager.pack(package, options)
       end

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.6.0
+
+### Added
+
+- Encapsulated packages (bundled dependencies): `capsium package pack
+  --bundle-deps` (alias `--bundle`; `Packager#pack` option
+  `bundle_deps: true`) resolves every declared `metadata.dependencies`
+  entry through the store -> registry chain and embeds the resolved
+  `.cap` files inside the parent under `packages/`, producing a fully
+  self-contained package that activates with no store or registry. The
+  `packages/index.json` manifest maps each dependency GUID to its
+  embedded file, resolved version and SHA-256
+  (`Capsium::Package::Bundle`). Loading resolves bundled dependencies
+  FIRST — including from inside a parent `.cap` — before the store ->
+  registry chain, and passes the bundle down so re-declared transitive
+  dependencies resolve from it (one-level bundling policy: the parent's
+  `metadata.dependencies` must list the transitive closure). The
+  manifest SHA-256 is re-verified at resolution
+  (`Security::IntegrityError` on mismatch) and each bundled package's
+  own `security.json`/signature is verified at activation. `pack`
+  gained `--store`/`--registry` options; `capsium package validate`
+  resolves bundled dependency layers, so fallthrough routes of
+  encapsulated packages validate.
+
 ## 0.5.0
 
 ### Added

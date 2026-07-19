@@ -1,12 +1,13 @@
 module Capsium
   class Package
     # Composite-package support (ARCHITECTURE.md section 4a), mixed into
-    # Package: metadata.dependencies resolution against a package store
-    # and load-time validation of dependency resource references.
+    # Package: metadata.dependencies resolution — bundled dependencies
+    # (Capsium::Package::Bundle) first, then the package store — and
+    # load-time validation of dependency resource references.
     module Composition
       private
 
-      def resolve_dependencies: ((Store | String)? store, Array[String] chain) -> Array[ResolvedDependency]
+      def resolve_dependencies: ((Store | String)? store, (Capsium::Registry | String)? registry, Array[String] chain, ?Bundle? bundle) -> Array[ResolvedDependency]
 
       def validate_dependency_references!: () -> void
 
