@@ -1,5 +1,82 @@
 # Changelog
 
+## 0.5.0
+
+### Added
+
+- Multiple mounted packages per reactor: `capsium reactor serve`
+  accepts multiple sources — positional arguments, repeatable
+  `--mount PATH=SOURCE` options and/or a JSON mount config
+  (`--config FILE`: `{"mounts": [{"path", "source", "store"?}]}`).
+  Default mount points: the first source at `/`, each additional one at
+  `/<metadata.name>/`; duplicate prefixes raise
+  `Capsium::Reactor::MountConflictError`. Requests dispatch by
+  longest-prefix mount matching (`Capsium::Reactor::Mount`); the
+  `/api/v1/introspect/*` endpoints aggregate ALL mounted packages,
+  `/package/<name>/{status,metadata,logs}` resolve by package name
+  (404 for unknown names), metrics/logs stay reactor-global, and
+  `Capsium::Reactor#cleanup` cleans up every mounted package.
+  Single-source invocation is unchanged.
+- Writable packages (ARCHITECTURE.md section 5a): a mounted package
+  whose metadata does not declare `"readOnly": true` gets an
+  append-only overlay layer in the reactor workdir (`--workdir DIR`,
+  default a temporary directory removed on cleanup), always the
+  topmost layer of the merged view (`MergedView` gained
+  `extra_layers`). The immutable base never changes on disk and every
+  write is visible on the next request (hot-swap); overlay state
+  (content files, `.capsium-tombstones`, per-dataset JSON operation
+  logs) persists in the workdir.
+- REST CRUD over datasets (`Capsium::Reactor::DataApi`):
+  `POST /api/v1/data/<dataset>` appends an item (201 + Location +
+  stored item; id convention is the `id` field else the 1-based index
+  as a string), `GET /<id>` reads one item, `PUT /<id>` replaces and
+  `DELETE /<id>` deletes. Statuses: 400 for malformed JSON, 403 with a
+  clear body on read-only packages, 404 for unknown datasets/items,
+  405 for wrong verbs, 409 for duplicate/mismatched ids, 422 with the
+  schema errors when the candidate document violates the dataset's
+  JSON schema, 501 for SQLite datasets. Undeclared datasets are not
+  served and route-level `accessControl` still applies.
+- Content writes (`Capsium::Reactor::ContentApi`): `PUT <route>`
+  creates/overwrites a content file (creating its route on demand;
+  text bodies only for v1) and `DELETE <route>` records a tombstone so
+  the path 404s even when a lower layer holds the file (404 when
+  nothing to delete).
+- GraphQL (new `graphql` dependency): every mounted package with
+  datasets answers `<mount>/graphql` (POST, or GET with `?query=`)
+  with a schema auto-derived from the package's storage
+  (`Capsium::Reactor::GraphqlSchema`): a query field `<dataset>`
+  (list) with an optional `id:` argument (single item) plus
+  `create<Dataset>`/`update<Dataset>`/`delete<Dataset>` mutations
+  matching the REST semantics including schema validation. Item types
+  are inferred from the dataset's JSON schema when present, else map
+  to a permissive JSON scalar; SQLite datasets are skipped. Not-found
+  items, schema violations, duplicates and read-only mutations land in
+  the `errors` array (no 500s on user error).
+- Save composite: `POST /package/<name>/save`
+  (`Capsium::Reactor::PackageSaver`) folds the base package plus its
+  overlay into a NEW versioned `.cap` (`<name>-<version+patch>.cap`)
+  in the workdir — overlay content files replace, tombstones delete,
+  dataset mutation logs replay into the dataset files, and manifest,
+  routes and security.json are regenerated — returning the `.cap`
+  path and its SHA-256. The saved package passes
+  `capsium package validate`. Read-only packages get 403, unknown
+  names 404, non-POST 405.
+
+### Changed
+
+- `Capsium::Reactor::Introspection.new` now takes the list of served
+  packages (aggregation); `/introspect/status` `packagesLoaded`
+  reflects the mount count.
+- The reactor dispatch, endpoint and response handling are split into
+  `Capsium::Reactor::Serving` (mount request serving),
+  `Capsium::Reactor::Endpoints` (reactor-level endpoints) and
+  `Capsium::Reactor::Responses` (HTTP response writers).
+- WEBrick's `ProcHandler` (GET/POST/PUT only) is extended with
+  `do_DELETE`/`do_PATCH` aliases so the writable-package REST verbs
+  reach the mounted procs.
+- `Metrics/ParameterLists` rubocop no longer counts keyword args (the
+  reactor constructor takes one keyword per deploy-time concern).
+
 ## 0.4.0
 
 ### Added
