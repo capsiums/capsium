@@ -6,6 +6,7 @@ module Capsium
   autoload :VERSION, "capsium/version"
   autoload :Cli, "capsium/cli"
   autoload :Converters, "capsium/converters"
+  autoload :LogBuffer, "capsium/log_buffer"
   autoload :Package, "capsium/package"
   autoload :Packager, "capsium/packager"
   autoload :Reactor, "capsium/reactor"

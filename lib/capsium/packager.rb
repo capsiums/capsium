@@ -58,8 +58,9 @@ module Capsium
     end
 
     def compress_package(package, cap_file)
-      entries = Dir[File.join(package.path, "**", "**")].reject do |file|
-        File.expand_path(file) == File.expand_path(cap_file)
+      entries = Dir.glob(File.join(package.path, "**", "**"), File::FNM_DOTMATCH).reject do |file|
+        File.expand_path(file) == File.expand_path(cap_file) ||
+          [".", ".."].include?(File.basename(file))
       end
       Zip::File.open(cap_file, create: true) do |zipfile|
         entries.each do |file|

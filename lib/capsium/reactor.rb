@@ -11,6 +11,7 @@ module Capsium
     autoload :Deploy, "capsium/reactor/deploy"
     autoload :Htpasswd, "capsium/reactor/htpasswd"
     autoload :Introspection, "capsium/reactor/introspection"
+    autoload :Metrics, "capsium/reactor/metrics"
     autoload :OAuth2, "capsium/reactor/oauth2"
     autoload :Serving, "capsium/reactor/serving"
     autoload :Session, "capsium/reactor/session"
@@ -21,7 +22,8 @@ module Capsium
     DEFAULT_CACHE_CONTROL = "public, max-age=31536000"
 
     attr_reader :package, :package_path, :routes, :port, :cache_control,
-                :server, :server_thread, :introspection, :authenticator
+                :server, :server_thread, :introspection, :authenticator,
+                :store, :registry, :started_at, :metrics, :log_buffer
 
     def initialize(package:, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
@@ -33,10 +35,15 @@ module Capsium
       @registry = registry
       @port = port
       @cache_control = cache_control
+      @started_at = Time.now
+      @metrics = Metrics.new
+      @log_buffer = Capsium::LogBuffer.new
       @deploy_config = Deploy.load(deploy)
       setup_server(do_not_listen)
       load_state
       mount_routes
+      @log_buffer.add("reactor started: #{@package.name} " \
+                      "#{@package.metadata.version} on port #{@port}")
     end
 
     def serve
@@ -45,32 +52,24 @@ module Capsium
       start_listener
     end
 
+    # Entry point for every mounted path: dispatches the request, then
+    # records it in the request metrics and the log buffer.
     def handle_request(request, response)
-      if @authenticator.endpoint?(request.path)
-        @authenticator.serve_endpoint(request, response)
-        return
-      end
-
-      identity = @authenticator.authenticate(request)
-      return @authenticator.challenge(response) if @authenticator.enabled? && identity.nil?
-      return serve_introspection(request, response) if @introspection.endpoint?(request.path)
-
-      route = @routes.resolve(request.path)
-      return respond_not_found(response) unless route
-
-      case @authenticator.authorize(identity, route.access_control)
-      when :unauthenticated then return @authenticator.challenge(response)
-      when :forbidden then return respond_forbidden(response)
-      end
-
-      serve_route(route, response)
+      dispatch_request(request, response)
+    ensure
+      record_request(request, response)
     end
 
     def mount_routes
       paths = @routes.config.routes.map(&:serving_path) +
-              Introspection::PATHS + @authenticator.endpoints
+              Introspection::PATHS + Introspection::REACTOR_PATHS +
+              @authenticator.endpoints
       paths.each do |path|
         @server.mount_proc(path.to_s) { |req, res| handle_request(req, res) }
+      end
+      # WEBrick longest-prefix matching: catches every "/package/...".
+      @server.mount_proc(Introspection::PACKAGE_MOUNT) do |req, res|
+        handle_request(req, res)
       end
     end
 
@@ -118,12 +117,13 @@ module Capsium
     def load_package
       @package = Package.new(@package_path, store: @store, registry: @registry)
       load_state
+      @log_buffer.add("package reloaded: #{@package.name}")
     end
 
     def load_state
       @routes = @package.routes
       @merged_view = @package.merged_view
-      @introspection = Introspection.new(@package)
+      @introspection = Introspection.new(@package, reactor: self)
       @authenticator = Authenticator.new(
         @package.authentication,
         deploy: @deploy_config,
@@ -133,12 +133,45 @@ module Capsium
       )
     end
 
+    def dispatch_request(request, response)
+      if @authenticator.endpoint?(request.path)
+        @authenticator.serve_endpoint(request, response)
+        return
+      end
+
+      identity = @authenticator.authenticate(request)
+      return @authenticator.challenge(response) if @authenticator.enabled? && identity.nil?
+      return serve_introspection(request, response) if @introspection.endpoint?(request.path)
+
+      route = @routes.resolve(request.path)
+      return respond_not_found(response) unless route
+
+      case @authenticator.authorize(identity, route.access_control)
+      when :unauthenticated then return @authenticator.challenge(response)
+      when :forbidden then return respond_forbidden(response)
+      end
+
+      serve_route(route, response)
+    end
+
+    # One request metric and one log line per served request.
+    def record_request(request, response)
+      status = response.status
+      return if status.nil?
+
+      @metrics.record(status)
+      @log_buffer.add("#{request.request_method} #{request.path} -> #{status}")
+    end
+
     def serve_introspection(request, response)
       return respond_method_not_allowed(response) unless request.request_method == "GET"
 
+      report = @introspection.report_for(request.path, params: request.query)
+      return respond_not_found(response) if report.nil?
+
       response.status = 200
       response["Content-Type"] = "application/json"
-      response.body = JSON.generate(@introspection.report_for(request.path))
+      response.body = JSON.generate(report)
     end
 
     def respond_not_found(response) = respond_text(response, 404, "Not Found")

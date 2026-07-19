@@ -48,11 +48,13 @@ RSpec.describe Capsium::Reactor do
     end
 
     it "returns the correct response for #{request_path}" do
-      request = instance_double(WEBrick::HTTPRequest, path: request_path)
+      request = instance_double(WEBrick::HTTPRequest, path: request_path,
+                                                      request_method: "GET")
       response = instance_double(WEBrick::HTTPResponse)
       allow(response).to receive(:[]=)
       allow(response).to receive(:body=)
       allow(response).to receive(:status=)
+      allow(response).to receive(:status).and_return(200)
 
       app.handle_request(request, response)
 
@@ -140,13 +142,16 @@ RSpec.describe Capsium::Reactor do
     let(:package_path) { File.join(fixtures_path, package_name) }
     let(:package) { Capsium::Package.new(package_path) }
     let(:app) { described_class.new(package: package, do_not_listen: true) }
-    let(:request) { instance_double(WEBrick::HTTPRequest, path: "/") }
+    let(:request) do
+      instance_double(WEBrick::HTTPRequest, path: "/", request_method: "GET")
+    end
     let(:response) { instance_double(WEBrick::HTTPResponse) }
 
     before do
       allow(response).to receive(:[]=)
       allow(response).to receive(:body=)
       allow(response).to receive(:status=)
+      allow(response).to receive(:status).and_return(200)
     end
 
     context "when the route exists" do
@@ -191,7 +196,8 @@ RSpec.describe Capsium::Reactor do
 
     context "when the route does not exist" do
       let(:request) do
-        instance_double(WEBrick::HTTPRequest, path: "/nonexistent")
+        instance_double(WEBrick::HTTPRequest, path: "/nonexistent",
+                                              request_method: "GET")
       end
 
       it "returns a 404 status" do
@@ -214,7 +220,8 @@ RSpec.describe Capsium::Reactor do
     context "when the route targets a dataset" do
       let(:package_name) { "data-package" }
       let(:request) do
-        instance_double(WEBrick::HTTPRequest, path: "/api/v1/data/animals")
+        instance_double(WEBrick::HTTPRequest, path: "/api/v1/data/animals",
+                                              request_method: "GET")
       end
       let(:expected_body) do
         JSON.generate(YAML.load_file(File.join(fixtures_path, package_name,
@@ -246,12 +253,14 @@ RSpec.describe Capsium::Reactor do
     let(:app) { described_class.new(package: package, do_not_listen: true) }
 
     # Calls the handler directly (rack-free) and captures the response.
-    def introspect(app, path, method: "GET")
+    def introspect(app, path, method: "GET", query: {})
       request = instance_double(WEBrick::HTTPRequest, path: path,
-                                                      request_method: method)
+                                                      request_method: method,
+                                                      query: query)
       response = instance_double(WEBrick::HTTPResponse)
       result = { headers: {} }
       allow(response).to receive(:status=) { |value| result[:status] = value }
+      allow(response).to receive(:status) { result[:status] }
       allow(response).to receive(:[]=) do |name, value|
         result[:headers][name] = value
       end
