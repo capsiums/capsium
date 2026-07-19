@@ -6,11 +6,13 @@ require "webrick"
 
 module Capsium
   class Reactor
+    autoload :Introspection, "capsium/reactor/introspection"
+
     DEFAULT_PORT = 8864
     DEFAULT_CACHE_CONTROL = "public, max-age=31536000"
 
     attr_reader :package, :package_path, :routes, :port, :cache_control,
-                :server, :server_thread
+                :server, :server_thread, :introspection
 
     def initialize(package:, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false)
@@ -19,7 +21,7 @@ module Capsium
       @port = port
       @cache_control = cache_control
       setup_server(do_not_listen)
-      @routes = @package.routes
+      load_state
       mount_routes
     end
 
@@ -30,19 +32,16 @@ module Capsium
     end
 
     def handle_request(request, response)
+      return serve_introspection(request, response) if @introspection.endpoint?(request.path)
+
       route = @routes.resolve(request.path)
-      if route
-        serve_route(route, response)
-      else
-        respond_not_found(response)
-      end
+      route ? serve_route(route, response) : respond_not_found(response)
     end
 
     def mount_routes
-      @routes.config.routes.each do |route|
-        @server.mount_proc(route.path.to_s) do |req, res|
-          handle_request(req, res)
-        end
+      paths = @routes.config.routes.map(&:path) + Introspection::PATHS
+      paths.each do |path|
+        @server.mount_proc(path.to_s) { |req, res| handle_request(req, res) }
       end
     end
 
@@ -89,7 +88,20 @@ module Capsium
 
     def load_package
       @package = Package.new(@package_path)
+      load_state
+    end
+
+    def load_state
       @routes = @package.routes
+      @introspection = Introspection.new(@package)
+    end
+
+    def serve_introspection(request, response)
+      return respond_method_not_allowed(response) unless request.request_method == "GET"
+
+      response.status = 200
+      response["Content-Type"] = "application/json"
+      response.body = JSON.generate(@introspection.report_for(request.path))
     end
 
     def serve_route(route, response)
@@ -113,10 +125,7 @@ module Capsium
     end
 
     def headers_for(route)
-      return route.headers if route.headers
-      return {} unless @cache_control
-
-      { "Cache-Control" => @cache_control }
+      route.headers || (@cache_control ? { "Cache-Control" => @cache_control } : {})
     end
 
     def serve_dataset(dataset_name, response)
@@ -130,16 +139,16 @@ module Capsium
       end
     end
 
-    def respond_not_found(response)
-      response.status = 404
-      response["Content-Type"] = "text/plain"
-      response.body = "Not Found"
-    end
+    def respond_not_found(response) = respond_text(response, 404, "Not Found")
 
-    def respond_not_implemented(response)
-      response.status = 501
+    def respond_not_implemented(response) = respond_text(response, 501, "Not Implemented")
+
+    def respond_method_not_allowed(response) = respond_text(response, 405, "Method Not Allowed")
+
+    def respond_text(response, status, body)
+      response.status = status
       response["Content-Type"] = "text/plain"
-      response.body = "Not Implemented"
+      response.body = body
     end
   end
 end
