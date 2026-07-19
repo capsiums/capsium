@@ -98,7 +98,6 @@ module Capsium
 
         ["modules must be kebab-case module identifiers"]
       end
-      end
 
       def invalid?(value, pattern)
         !value.nil? && !value.match?(pattern)
