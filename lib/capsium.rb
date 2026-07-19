@@ -9,5 +9,6 @@ module Capsium
   autoload :Package, "capsium/package"
   autoload :Packager, "capsium/packager"
   autoload :Reactor, "capsium/reactor"
+  autoload :Registry, "capsium/registry"
   autoload :ThorExt, "capsium/thor_ext"
 end

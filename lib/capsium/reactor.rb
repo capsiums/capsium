@@ -25,10 +25,12 @@ module Capsium
 
     def initialize(package:, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
-                   store: nil, deploy: nil)
-      @package = package.is_a?(String) ? Package.new(package, store: store) : package
+                   store: nil, deploy: nil, registry: nil)
+      @package = package
+      @package = Package.new(package, store: store, registry: registry) if package.is_a?(String)
       @package_path = @package.path
       @store = store
+      @registry = registry
       @port = port
       @cache_control = cache_control
       @deploy_config = Deploy.load(deploy)
@@ -114,7 +116,7 @@ module Capsium
     end
 
     def load_package
-      @package = Package.new(@package_path, store: @store)
+      @package = Package.new(@package_path, store: @store, registry: @registry)
       load_state
     end
 

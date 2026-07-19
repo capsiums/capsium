@@ -32,6 +32,12 @@ module Capsium
 
       # Every .cap in the store with its metadata identity (memoized).
       def catalog: () -> Array[CatalogEntry]
+
+      # Installs the .cap at source_path into the store as file_name,
+      # records guid -> file_name in index.json (atomically) and returns
+      # the installed path.
+      def install: (String source_path, guid: String guid,
+                    file_name: String file_name) -> String
     end
   end
 end

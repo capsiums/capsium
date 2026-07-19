@@ -1,0 +1,18 @@
+module Capsium
+  class Registry
+    # A read-only static registry behind an https base URL (plain http
+    # for loopback hosts only).
+    class Remote < Registry
+      OPEN_TIMEOUT: Integer
+      READ_TIMEOUT: Integer
+      MAX_REDIRECTS: Integer
+      LOOPBACK_NETWORKS: Array[untyped]
+
+      attr_reader base_url: String
+
+      def initialize: (String base_url) -> void
+
+      def location: () -> String
+    end
+  end
+end

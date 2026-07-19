@@ -30,11 +30,14 @@ module Capsium
     # Loads a package directory or .cap file. Composite packages
     # (metadata.dependencies, ARCHITECTURE.md section 4a) resolve against
     # the package store given as `store` (directory path or Store) or via
-    # CAPSIUM_STORE. `dependency_chain` is internal: the ancestor GUIDs
+    # CAPSIUM_STORE, falling back to the registry given as `registry`
+    # or via CAPSIUM_REGISTRY when the store has no package for a
+    # dependency GUID. `dependency_chain` is internal: the ancestor GUIDs
     # used for circular-dependency detection during recursive resolution.
     def initialize: (String | Pathname path, ?load_type: Symbol? load_type,
                      ?decryption_key: String? decryption_key,
                      ?store: (Store | String)? store,
+                     ?registry: (Capsium::Registry | String)? registry,
                      ?dependency_chain: Array[String] dependency_chain) -> void
 
     def solidify: () -> void

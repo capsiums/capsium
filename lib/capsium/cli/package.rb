@@ -66,6 +66,18 @@ module Capsium
         puts "Package unpacked to: #{destination}"
       end
 
+      desc "push PACKAGE_FILE", "Push a .cap into a static registry directory"
+      option :registry, type: :string,
+                        desc: "Registry directory (default: CAPSIUM_REGISTRY)"
+
+      def push(path_to_package)
+        registry = Capsium::Registry.fetch(options[:registry] || ENV.fetch("CAPSIUM_REGISTRY", nil))
+        entry = registry.push(path_to_package)
+        puts "Pushed #{entry.name} #{entry.version} to #{registry.location}"
+      rescue Capsium::Registry::RegistryError => e
+        raise Thor::Error, e.message
+      end
+
       desc "validate PACKAGE_PATH", "Validate a package directory or .cap file"
 
       def validate(path_to_package)
