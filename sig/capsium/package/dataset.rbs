@@ -19,6 +19,10 @@ module Capsium
 
       def validate: () -> bool
 
+      # The parsed JSON schema for this dataset, or nil when none is
+      # declared or the file is unreadable.
+      def json_schema: () -> Hash[String, untyped]?
+
       # Schema validation of an arbitrary candidate document (used by
       # the reactor's writable overlay); empty when valid or schema-less.
       def schema_errors_for: (untyped data) -> Array[String]

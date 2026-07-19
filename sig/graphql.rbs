@@ -1,0 +1,12 @@
+# Minimal RBS stubs for the graphql gem: only the constants capsium's
+# own signatures reference (the gem ships full sigs, but this project
+# does not use an RBS collection).
+module GraphQL
+  class Schema
+    def self.execute: (String query, ?variables: Hash[String, untyped] variables, ?operation_name: String? operation_name) -> untyped
+
+    class Scalar
+      def self.graphql_name: (?String name) -> void
+    end
+  end
+end

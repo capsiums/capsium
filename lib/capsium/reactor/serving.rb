@@ -37,6 +37,9 @@ module Capsium
       def serve_mounted_request(mount, identity, request, response)
         inner = mount.inner_path(request.path)
         return serve_data_api(mount, identity, inner, request, response) if DataApi.path?(inner)
+        if GraphqlApi.path?(inner) && mount.graphql?
+          return mount.graphql_api.handle(request, response)
+        end
         if ContentApi.write_method?(request.request_method)
           return serve_content_api(mount, identity, inner, request, response)
         end

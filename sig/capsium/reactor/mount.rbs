@@ -66,6 +66,11 @@ module Capsium
 
       def content_api: () -> ContentApi
 
+      # Whether this mount exposes a GraphQL API (any file-backed dataset).
+      def graphql?: () -> bool
+
+      def graphql_api: () -> GraphqlApi
+
       # The one-line "name version" summary used in reactor logs.
       def summary: () -> String
 

@@ -67,6 +67,15 @@ module Capsium
         problems
       end
 
+      # The parsed JSON schema for this dataset, or nil when none is
+      # declared or the file is unreadable.
+      def json_schema
+        return nil unless @config.schema_file && @config.schema_type == "json-schema"
+        return nil unless File.file?(schema_path)
+
+        load_schema
+      end
+
       # Schema validation of an arbitrary candidate document (used by
       # the reactor's writable overlay before persisting a mutation):
       # human-readable schema problems, empty when valid or when the

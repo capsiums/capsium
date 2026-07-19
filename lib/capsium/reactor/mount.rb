@@ -172,6 +172,14 @@ module Capsium
 
       def content_api = @content_api ||= ContentApi.new(self)
 
+      # Whether this mount exposes a GraphQL API (any file-backed
+      # dataset; SQLite datasets are skipped).
+      def graphql?
+        @package.storage.datasets.any? { |dataset| !dataset.config.sqlite? }
+      end
+
+      def graphql_api = @graphql_api ||= GraphqlApi.new(self)
+
       # The one-line "name version" summary used in reactor logs.
       def summary = "#{@package.name} #{@package.metadata.version}"
 
@@ -190,6 +198,7 @@ module Capsium
       # lives in the reactor workdir, not in the package).
       def reload
         @merged_view = nil
+        @graphql_api = nil
         @package = Package.new(@package.path, store: @store, registry: @registry)
       end
     end

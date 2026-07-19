@@ -26,6 +26,8 @@ module Capsium
     autoload :ContentApi, "capsium/reactor/content_api"
     autoload :DataApi, "capsium/reactor/data_api"
     autoload :Deploy, "capsium/reactor/deploy"
+    autoload :GraphqlApi, "capsium/reactor/graphql_api"
+    autoload :GraphqlSchema, "capsium/reactor/graphql_schema"
     autoload :Htpasswd, "capsium/reactor/htpasswd"
     autoload :Introspection, "capsium/reactor/introspection"
     autoload :Metrics, "capsium/reactor/metrics"
