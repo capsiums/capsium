@@ -52,6 +52,8 @@ module Capsium
         if ContentApi.write_method?(request.request_method)
           return serve_content_api(mount, identity, inner, request, response)
         end
+        return respond_method_not_allowed(response) unless %w[GET
+                                                              HEAD].include?(request.request_method)
 
         route = mount.routes.resolve(inner)
         return respond_not_found(response) unless route

@@ -29,7 +29,7 @@ module Capsium
         case request.request_method
         when "POST" then handle_post(request, response)
         when "GET" then handle_get(request, response)
-        else respond_method_not_allowed(response)
+        else respond_method_not_allowed(response, allow: "GET, POST")
         end
       end
 

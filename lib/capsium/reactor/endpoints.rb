@@ -12,7 +12,10 @@ module Capsium
       private
 
       def serve_introspection(request, response)
-        return respond_method_not_allowed(response) unless request.request_method == "GET"
+        unless request.request_method == "GET"
+          return respond_method_not_allowed(response,
+                                            allow: "GET")
+        end
 
         report = @introspection.report_for(request.path, params: request.query)
         return respond_not_found(response) if report.nil?
@@ -23,7 +26,10 @@ module Capsium
       # POST /package/<name>/save: folds the mounted package's base plus
       # its overlay into a new versioned .cap in the workdir.
       def serve_package_save(request, response)
-        return respond_method_not_allowed(response) unless request.request_method == "POST"
+        unless request.request_method == "POST"
+          return respond_method_not_allowed(response,
+                                            allow: "POST")
+        end
 
         name = PACKAGE_SAVE_PATTERN.match(request.path)[:name]
         mount = @mounts.find { |candidate| candidate.package.name == name }

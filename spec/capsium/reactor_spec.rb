@@ -97,6 +97,38 @@ RSpec.describe Capsium::Reactor do
                     "text/plain", nil
   end
 
+  context "method enforcement" do
+    let(:package_path) { File.join(fixtures_path, "data-package") }
+    let(:package) { Capsium::Package.new(package_path) }
+    let(:app) { described_class.new(package: package, do_not_listen: true) }
+    let(:response) do
+      instance_double(WEBrick::HTTPResponse).tap do |res|
+        allow(res).to receive(:[]=)
+        allow(res).to receive(:body=)
+        allow(res).to receive(:status=)
+        allow(res).to receive(:status).and_return(405)
+      end
+    end
+
+    it "rejects POST to a static route with 405 and Allow: GET, HEAD" do
+      request = instance_double(WEBrick::HTTPRequest, path: "/example.css",
+                                                      request_method: "POST")
+      app.handle_request(request, response)
+
+      expect(response).to have_received(:status=).with(405)
+      expect(response).to have_received(:[]=).with("Allow", "GET, HEAD")
+    end
+
+    it "rejects POST to introspection with 405 and Allow: GET" do
+      request = instance_double(WEBrick::HTTPRequest, path: "/api/v1/introspect/metadata",
+                                                      request_method: "POST")
+      app.handle_request(request, response)
+
+      expect(response).to have_received(:status=).with(405)
+      expect(response).to have_received(:[]=).with("Allow", "GET")
+    end
+  end
+
   context "with a layered package (ARCHITECTURE.md section 5a)" do
     # updates/ is the topmost layer and wins over base/ and content/.
     it_behaves_like "a reactor", "layered-package", "/shared.css", 200,
