@@ -32,7 +32,7 @@ module Capsium
         case request.request_method
         when "PUT" then put_content(inner_path, route, request, response)
         when "DELETE" then delete_content(inner_path, route, response)
-        else respond_method_not_allowed(response)
+        else respond_method_not_allowed(response, allow: "PUT, DELETE")
         end
       end
 

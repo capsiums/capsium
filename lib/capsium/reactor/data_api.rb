@@ -55,7 +55,7 @@ module Capsium
         case request.request_method
         when "GET" then respond_json(response, 200, @mount.dataset_data(dataset))
         when "POST" then append_item(dataset, request, response)
-        else respond_method_not_allowed(response)
+        else respond_method_not_allowed(response, allow: "GET, POST")
         end
       end
 
@@ -64,7 +64,7 @@ module Capsium
         when "GET" then read_item(dataset, id, response)
         when "PUT" then replace_item(dataset, id, request, response)
         when "DELETE" then delete_item(dataset, id, response)
-        else respond_method_not_allowed(response)
+        else respond_method_not_allowed(response, allow: "GET, PUT, DELETE")
         end
       end
 
