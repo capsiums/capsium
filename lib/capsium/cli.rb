@@ -7,7 +7,9 @@ module Capsium
     extend ThorExt::Start
 
     autoload :Convert, "capsium/cli/convert"
+    autoload :Diff, "capsium/cli/diff"
     autoload :Formatting, "capsium/cli/formatting"
+    autoload :Init, "capsium/cli/init"
     autoload :Package, "capsium/cli/package"
     autoload :Reactor, "capsium/cli/reactor"
 
@@ -19,6 +21,29 @@ module Capsium
 
     desc "convert SUBCOMMAND ...ARGS", "Convert from another format"
     subcommand "convert", Capsium::Cli::Convert
+
+    desc "init TEMPLATE NAME", "Scaffold a new Capsium package from a template"
+    def init(template, name)
+      result = Capsium::Cli::Init.call(template: template, name: name)
+      puts "Created #{result.name} (template: #{result.template}) at #{result.path}"
+      puts "Next: cd #{result.name} && capsium package validate ."
+    rescue ArgumentError => e
+      raise Thor::Error, e.message
+    end
+
+    desc "diff PACKAGE_A PACKAGE_B", "Show structural differences between two packages"
+    option :json, type: :boolean, default: false, desc: "Emit machine-readable JSON"
+
+    def diff(path_a, path_b)
+      report = Capsium::Cli::Diff.call(path_a, path_b)
+      if options[:json]
+        puts JSON.pretty_generate(diff_to_h(report))
+      else
+        puts Capsium::Cli::Diff::Format.new(report).render
+      end
+    rescue Capsium::Error => e
+      raise Thor::Error, e.message
+    end
 
     desc "install GUID", "Install a package from a registry into the package store"
     option :constraint, type: :string, default: "*",
@@ -38,6 +63,16 @@ module Capsium
     end
 
     private
+
+    def diff_to_h(report)
+      {
+        left: report.left,
+        right: report.right,
+        routes: report.routes.to_h,
+        resources: report.resources.to_h,
+        datasets: report.datasets.to_h
+      }
+    end
 
     # The store directory for install-like commands: --store or
     # CAPSIUM_STORE, otherwise a typed CLI error.

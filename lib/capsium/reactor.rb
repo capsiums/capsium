@@ -61,11 +61,12 @@ module Capsium
     # saved packages; it defaults to a temporary directory the reactor
     # removes on cleanup. `read_only: true` forces every mount
     # read-only regardless of package metadata (the operator override
-    # documented in issue #27).
+    # documented in issue #27). `watch: true` enables the source-tree
+    # listener that reloads mounts on file change without a restart.
     def initialize(package: nil, mounts: nil, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
                    store: nil, deploy: nil, registry: nil, workdir: nil,
-                   read_only: false)
+                   read_only: false, watch: false)
       @store = store
       @registry = registry
       @workdir = workdir || Dir.mktmpdir("capsium-reactor-")
@@ -76,6 +77,7 @@ module Capsium
       @mounts.each { |mount| mount.attach_workdir(@workdir) }
       @port = port
       @cache_control = cache_control
+      @watch = watch
       @started_at = Time.now
       @metrics = Metrics.new
       @log_buffer = Capsium::LogBuffer.new
@@ -157,7 +159,18 @@ module Capsium
       exit
     end
 
+    # File-watch + reload. Watches the root mount's source tree and
+    # reloads every mount on change. The watch covers the root mount
+    # only (the single-package path); multi-mount watch is a follow-up
+    # since each mount may live in a different directory or .cap.
+    # Disabled by default; pass --watch to `capsium reactor serve` to
+    # enable. When watch is off, serve just joins the server thread.
     def start_listener
+      unless @watch
+        @server_thread.join
+        return
+      end
+
       listener = Listen.to(@package_path) do |_modified, _added, _removed|
         puts "Changes detected, reloading..."
         restart_server

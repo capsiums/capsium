@@ -1,0 +1,11 @@
+{
+  "storage": {
+    "dataSets": {
+      "items": {
+      "source": "data/items.json",
+      "schemaFile": "data/items_schema.json",
+      "schemaType": "json-schema"
+      }
+    }
+  }
+}
