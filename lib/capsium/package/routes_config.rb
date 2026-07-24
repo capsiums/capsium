@@ -151,9 +151,44 @@ module Capsium
 
       def self.from_json(json)
         doc = JSON.parse(json)
-        doc["routes"] = (doc["routes"] || []).map { |route| normalize_route(route) }
+        doc["routes"] = normalize_routes(doc["routes"])
         super(JSON.generate(doc))
       end
+
+      # Routes may arrive in three read-tolerated shapes; writers emit
+      # only the canonical array of {path, kind, ...}:
+      #   - Array  — canonical form (CC 62001 §05x-routing).
+      #   - Hash   — Annex E object-keyed-by-path legacy form
+      #              ({"/x": {...}}); expanded to the array form with
+      #              the key merged in as "path".
+      #   - nil    — treated as an empty routes array.
+      def self.normalize_routes(value)
+        case value
+        when nil then []
+        when Array then value.map { |route| normalize_route(route) }
+        when Hash then normalize_object_form(value)
+        else
+          raise Error, "Invalid routes.json: \"routes\" must be an array " \
+                       "or object, got #{value.class}"
+        end
+      end
+
+      # Expands the Annex E object-keyed form into the canonical array
+      # form. Each `{ path => body }` becomes `{ "path" => path, **body }`.
+      # A "path" key inside the body is rejected — the outer key wins and
+      # a conflicting inner value indicates user confusion worth surfacing.
+      def self.normalize_object_form(object)
+        object.map do |path, body|
+          body = {} unless body.is_a?(Hash)
+          if body.key?("path") && body["path"] != path
+            raise Error, "Invalid routes.json: object-keyed entry #{path.inspect} " \
+                         "conflicts with inner \"path\": #{body['path'].inspect}"
+          end
+
+          normalize_route(body.merge("path" => path))
+        end
+      end
+      private_class_method :normalize_routes, :normalize_object_form
 
       def self.normalize_route(route)
         target = route.delete("target")
