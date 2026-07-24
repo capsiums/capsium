@@ -43,6 +43,10 @@ module Capsium
       TOMBSTONE_FILE = Package::MergedView::TOMBSTONE_FILE
       SAFE_NAME_PATTERN = /\A[\w.-]+\z/
 
+      autoload :SqliteOps, "capsium/reactor/overlay/sqlite_ops"
+
+      include SqliteOps
+
       attr_reader :root, :tombstones
 
       def initialize(root:)
@@ -82,22 +86,30 @@ module Capsium
       end
 
       # The dataset as served: the base data untouched when no mutations
-      # were recorded, the merged collection otherwise.
+      # were recorded, the merged collection otherwise. SQLite datasets
+      # served from the overlay DB once one exists (copy-on-write).
       def dataset_data(dataset)
+        return sqlite_dataset_data(dataset) if dataset.config.sqlite?
+
         return dataset.data if mutation_log(dataset.name).empty?
 
         items(dataset)
       end
 
       # The merged item collection: base data plus the replayed
-      # mutation log.
+      # mutation log. SQLite datasets do not use the JSON op log — they
+      # serve straight from the copy-on-write overlay DB.
       def items(dataset)
+        return sqlite_collection(dataset) if dataset.config.sqlite?
+
         mutation_log(dataset.name).inject(base_items(dataset)) do |items, record|
           apply_op(items, record)
         end
       end
 
       def item(dataset, id)
+        return sqlite_item(dataset, id) if dataset.config.sqlite?
+
         current = items(dataset)
         found = find_index(current, id)
         raise ItemNotFoundError, "no item #{id} in dataset #{dataset.name}" unless found
@@ -108,6 +120,8 @@ module Capsium
       # Appends an item and returns its assigned id: the "id" field
       # convention, else the 1-based index as a string.
       def append_item(dataset, item)
+        return sqlite_append_item(dataset, item) if dataset.config.sqlite?
+
         current = items(dataset)
         explicit = item_id(item)
         if explicit && find_index(current, explicit)
@@ -120,6 +134,8 @@ module Capsium
       end
 
       def replace_item(dataset, id, item)
+        return sqlite_replace_item(dataset, id, item) if dataset.config.sqlite?
+
         current = items(dataset)
         index = find_index(current, id)
         raise ItemNotFoundError, "no item #{id} in dataset #{dataset.name}" unless index
@@ -134,6 +150,8 @@ module Capsium
       end
 
       def delete_item(dataset, id)
+        return sqlite_delete_item(dataset, id) if dataset.config.sqlite?
+
         unless find_index(items(dataset), id)
           raise ItemNotFoundError, "no item #{id} in dataset #{dataset.name}"
         end
