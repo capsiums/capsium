@@ -30,7 +30,7 @@ Metrics/BlockLength:
 Metrics/ModuleLength:
   Exclude:
     - 'spec/**/*'
-  Max: 175
+  Max: 200
 
 # Spec helpers take the parameters the fixtures need; the reactor
 # constructor takes one keyword per deploy-time concern (keyword args

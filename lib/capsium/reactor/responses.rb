@@ -15,6 +15,11 @@ module Capsium
 
       def respond_not_implemented(response) = respond_text(response, 501, "Not Implemented")
 
+      def respond_not_modified(response)
+        response.status = 304
+        response.body = nil
+      end
+
       def respond_method_not_allowed(response, allow: "GET, HEAD")
         response["Allow"] = allow
         respond_text(response, 405, "Method Not Allowed")

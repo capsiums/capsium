@@ -11,6 +11,8 @@ module Capsium
     class DataApi
       include Responses
 
+      autoload :CollectionQuery, "capsium/reactor/data_api/collection_query"
+
       PREFIX = "/api/v1/data/"
       COLLECTION_PATTERN = %r{\A/api/v1/data/(?<dataset>[^/]+)\z}
       ITEM_PATTERN = %r{\A/api/v1/data/(?<dataset>[^/]+)/(?<id>[^/]+)\z}
@@ -53,10 +55,37 @@ module Capsium
 
       def handle_collection(dataset, request, response)
         case request.request_method
-        when "GET" then respond_json(response, 200, @mount.dataset_data(dataset))
+        when "GET" then read_collection(dataset, request, response)
         when "POST" then append_item(dataset, request, response)
         else respond_method_not_allowed(response, allow: "GET, POST")
         end
+      end
+
+      def read_collection(dataset, request, response)
+        query = CollectionQuery.from_query(query_hash(request))
+        result = @mount.overlay.query_collection(dataset, query)
+        return respond_not_modified(response) if etag_match?(request, result[:etag])
+
+        response["ETag"] = result[:etag]
+        response["X-Total-Count"] = result[:total].to_s
+        respond_json(response, 200, result[:items])
+      end
+
+      # WEBrick HTTPRequest#query returns a Hash with string keys (and
+      # values that may be multi-valued via WEBrick::HTTPUtils::FormData).
+      # For unit-test ergonomics, accept any hash-like object.
+      def query_hash(request)
+        query = request.respond_to?(:query) ? request.query : nil
+        return nil unless query.is_a?(Hash)
+
+        query.transform_values(&:to_s)
+      end
+
+      def etag_match?(request, etag)
+        return false unless etag
+
+        incoming = request["If-None-Match"] rescue nil # rubocop:disable Style/RescueModifier
+        incoming && incoming == etag
       end
 
       def handle_item(dataset, id, request, response)

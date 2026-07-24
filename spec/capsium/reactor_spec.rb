@@ -257,6 +257,7 @@ RSpec.describe Capsium::Reactor do
         instance_double(WEBrick::HTTPRequest, path: "/api/v1/data/animals",
                                               request_method: "GET")
       end
+      before { allow(request).to receive(:[]).and_return(nil) }
       let(:expected_body) do
         JSON.generate(YAML.load_file(File.join(fixtures_path, package_name,
                                                "data", "animals.yaml")))

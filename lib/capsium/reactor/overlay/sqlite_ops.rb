@@ -116,6 +116,35 @@ module Capsium
           end
         end
 
+        def sqlite_query(dataset, query)
+          with_sqlite(dataset) do |db|
+            sql_spec = query.to_sql
+            rows = sqlite_select(dataset, db, sql_spec)
+            total = sqlite_count(dataset, db, sql_spec)
+            {
+              items: rows,
+              total: total,
+              etag: DataApi::CollectionQuery.etag_for(rows, total)
+            }
+          end
+        end
+
+        def sqlite_select(dataset, db, spec)
+          sql = "SELECT * FROM #{dataset.config.table}"
+          sql += " WHERE #{spec[:where].join(' AND ')}" unless spec[:where].empty?
+          sql += " ORDER BY #{spec[:order]}" if spec[:order]
+          sql += " LIMIT #{spec[:limit].to_i} OFFSET #{spec[:offset].to_i}"
+          db.execute(sql, spec[:params])
+        end
+
+        def sqlite_count(dataset, db, spec)
+          sql = "SELECT COUNT(*) FROM #{dataset.config.table}"
+          sql += " WHERE #{spec[:where].join(' AND ')}" unless spec[:where].empty?
+          row = db.execute(sql, spec[:params]).first
+          row.is_a?(Hash) ? row.values.first.to_i : row.first.to_i
+        end
+        private :sqlite_select, :sqlite_count
+
         def with_sqlite(dataset)
           path = if sqlite_overlay?(dataset)
                    sqlite_overlay_path(dataset)
