@@ -38,6 +38,9 @@ RSpec.describe "Reactor with multiple mounted packages" do
     request = instance_double(WEBrick::HTTPRequest, path: path,
                                                     request_method: method,
                                                     query: query)
+    # Allow header lookups (If-None-Match, etc.) without forcing every
+    # spec to opt in.
+    allow(request).to receive(:[]).and_return(nil)
     response = instance_double(WEBrick::HTTPResponse)
     result = { headers: {} }
     allow(response).to receive(:status=) { |value| result[:status] = value }

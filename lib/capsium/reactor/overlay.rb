@@ -160,6 +160,35 @@ module Capsium
         nil
       end
 
+      # Apply a parsed CollectionQuery (pagination + sort + filter) to
+      # the dataset collection and return { items:, total:, etag: }.
+      # For JSON datasets the work happens in Ruby; for SQLite the
+      # query translates to SQL and runs against the overlay DB.
+      #
+      # Datasets whose stored value is not a JSON collection (a single
+      # object, a map) bypass query semantics — those are read-only
+      # documents, not addressable item collections, and the spec
+      # promises their bytes back unchanged.
+      def query_collection(dataset, query)
+        return sqlite_query(dataset, query) if dataset.config.sqlite?
+
+        data = dataset_data(dataset)
+        unless data.is_a?(Array)
+          return {
+            items: data,
+            total: nil,
+            etag: DataApi::CollectionQuery.etag_for(data, 1)
+          }
+        end
+
+        applied = query.apply_to_json(data)
+        {
+          items: applied[:items],
+          total: applied[:total],
+          etag: DataApi::CollectionQuery.etag_for(applied[:items], applied[:total])
+        }
+      end
+
       # The item id convention: an "id" field, else nil (positional).
       def item_id(item)
         item["id"].to_s if item.is_a?(Hash) && item.key?("id")

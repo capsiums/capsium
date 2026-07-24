@@ -35,20 +35,42 @@ RSpec.describe "Reactor writable packages (REST CRUD over the overlay)" do
   end
 
   # Calls the handler directly (rack-free) and captures the response.
-  def request_to(app, path, method: "GET", body: nil)
-    request = instance_double(WEBrick::HTTPRequest, path: path,
-                                                    request_method: method,
-                                                    body: body)
-    response = instance_double(WEBrick::HTTPResponse)
+  def request_to(app, path, method: "GET", body: nil, query: nil, headers: {})
+    request = new_request_double(path: path, method: method, body: body)
+    stub_request_headers(request, headers)
+    allow(request).to receive(:query).and_return(query)
+
     result = { headers: {} }
-    allow(response).to receive(:status=) { |value| result[:status] = value }
-    allow(response).to receive(:status) { result[:status] }
-    allow(response).to receive(:[]=) do |name, value|
-      result[:headers][name] = value
-    end
-    allow(response).to receive(:body=) { |value| result[:body] = value }
+    response = new_response_double(result)
     app.handle_request(request, response)
     result
+  end
+
+  def new_request_double(path:, method:, body:)
+    instance_double(WEBrick::HTTPRequest, path: path,
+                                          request_method: method,
+                                          body: body).tap do |req|
+      # Allow header lookups (If-None-Match, etc.) without forcing every
+      # spec to opt in. Specific headers override via stub_request_headers.
+      allow(req).to receive(:[]).and_return(nil)
+    end
+  end
+
+  def stub_request_headers(request, headers)
+    headers.each do |name, value|
+      allow(request).to receive(:[]).with(name).and_return(value)
+    end
+  end
+
+  def new_response_double(result)
+    instance_double(WEBrick::HTTPResponse).tap do |res|
+      allow(res).to receive(:status=) { |value| result[:status] = value }
+      allow(res).to receive(:status) { result[:status] }
+      allow(res).to receive(:[]=) do |name, value|
+        result[:headers][name] = value
+      end
+      allow(res).to receive(:body=) { |value| result[:body] = value }
+    end
   end
 
   def json(result)
@@ -197,6 +219,76 @@ RSpec.describe "Reactor writable packages (REST CRUD over the overlay)" do
     end
   end
 
+  describe "collection query (pagination/sort/filter + ETag)" do
+    before do
+      %w[alpha bravo charlie delta echo].each_with_index do |title, i|
+        request_to(app, "/api/v1/data/notes", method: "POST",
+                                              body: JSON.generate("id" => (i + 10).to_s,
+                                                                  "title" => title.capitalize))
+      end
+    end
+
+    it "paginates the collection with ?limit and ?offset" do
+      page1 = request_to(app, "/api/v1/data/notes", query: { "limit" => "2" })
+      page2 = request_to(app, "/api/v1/data/notes",
+                         query: { "limit" => "2", "offset" => "2" })
+      expect(page1[:headers]["X-Total-Count"]).to eq("7")
+      expect(json(page1).size).to eq(2)
+      expect(json(page2).size).to eq(2)
+      ids1 = json(page1).map { |n| n["id"] }
+      ids2 = json(page2).map { |n| n["id"] }
+      expect(ids1 & ids2).to be_empty
+    end
+
+    it "sorts ascending by a field with ?sort=" do
+      result = request_to(app, "/api/v1/data/notes", query: { "sort" => "title" })
+      titles = json(result).map { |n| n["title"] }
+      expect(titles).to eq(titles.sort)
+    end
+
+    it "sorts descending with ?sort=-field" do
+      result = request_to(app, "/api/v1/data/notes", query: { "sort" => "-title" })
+      titles = json(result).map { |n| n["title"] }
+      expect(titles).to eq(titles.sort.reverse)
+    end
+
+    it "filters by exact match with ?field=value" do
+      result = request_to(app, "/api/v1/data/notes", query: { "title" => "Alpha" })
+      titles = json(result).map { |n| n["title"] }
+      expect(titles).to eq(%w[Alpha])
+      expect(result[:headers]["X-Total-Count"]).to eq("1")
+    end
+
+    it "returns an ETag with the response" do
+      result = request_to(app, "/api/v1/data/notes")
+      expect(result[:headers]["ETag"]).to match(/\A"[0-9a-f]{16}"\z/)
+    end
+
+    it "answers 304 when If-None-Match matches the ETag" do
+      first = request_to(app, "/api/v1/data/notes")
+      etag = first[:headers]["ETag"]
+
+      second = request_to(app, "/api/v1/data/notes",
+                          headers: { "If-None-Match" => etag })
+      expect(second[:status]).to eq(304)
+      expect(second[:body]).to be_nil
+    end
+
+    it "returns 200 with the body when If-None-Match does not match" do
+      result = request_to(app, "/api/v1/data/notes",
+                          headers: { "If-None-Match" => '"deadbeefdeadbeef"' })
+      expect(result[:status]).to eq(200)
+      expect(json(result).size).to eq(7)
+    end
+
+    it "ignores unknown query params as filters on missing fields (zero rows)" do
+      result = request_to(app, "/api/v1/data/notes",
+                          query: { "nonexistent_field" => "x" })
+      expect(json(result)).to eq([])
+      expect(result[:headers]["X-Total-Count"]).to eq("0")
+    end
+  end
+
   describe "content writes (PUT/DELETE <route>)" do
     it "creates a new content file and its route on demand" do
       created = request_to(app, "/fresh.txt", method: "PUT", body: "fresh content")
@@ -289,7 +381,7 @@ RSpec.describe "Reactor writable packages (REST CRUD over the overlay)" do
     it "serves reads from the base DB before any write" do
       result = request_to(app, "/api/v1/data/sales")
       expect(result[:status]).to eq(200)
-      rows = json(result)["sales"]
+      rows = json(result)
       expect(rows.size).to eq(1)
     end
 
@@ -299,7 +391,7 @@ RSpec.describe "Reactor writable packages (REST CRUD over the overlay)" do
       expect(created[:status]).to eq(201)
       expect(created[:headers]["Location"]).to match(%r{/api/v1/data/sales/\d+})
 
-      collection = json(request_to(app, "/api/v1/data/sales"))["sales"]
+      collection = json(request_to(app, "/api/v1/data/sales"))
       expect(collection.size).to eq(2)
       new_id = created[:headers]["Location"].split("/").last
 
@@ -331,7 +423,7 @@ RSpec.describe "Reactor writable packages (REST CRUD over the overlay)" do
       expect(request_to(app, "/api/v1/data/sales/9999")[:status]).to eq(404)
       expect(request_to(app, "/api/v1/data/sales/9999", method: "DELETE")[:status]).to eq(404)
 
-      existing_id = json(request_to(app, "/api/v1/data/sales"))["sales"].first["id"]
+      existing_id = json(request_to(app, "/api/v1/data/sales")).first["id"]
       dupe = request_to(app, "/api/v1/data/sales", method: "POST",
                                                    body: JSON.generate("id" => existing_id,
                                                                        "total" => 1.0))
