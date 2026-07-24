@@ -32,6 +32,10 @@ module Capsium
       option :workdir, type: :string,
                        desc: "Reactor work directory for writable overlays " \
                              "and saved packages (default: a temporary directory)"
+      option :read_only, type: :boolean, default: false, aliases: [:readonly],
+                         desc: "Force every mount read-only regardless of " \
+                               "package metadata (operator override; the " \
+                               "default stays metadata-driven per spec)"
 
       # Thor array options are last-wins when the flag repeats; collect
       # every --mount value (both "--mount V" and "--mount=V" forms)
@@ -83,7 +87,8 @@ module Capsium
           store: options[:store],
           deploy: options[:deploy],
           registry: options[:registry],
-          workdir: options[:workdir]
+          workdir: options[:workdir],
+          read_only: options[:read_only]
         )
         reactor.serve
       rescue Capsium::Error => e

@@ -59,16 +59,20 @@ module Capsium
     # (Reactor::Mount) resolved by longest-prefix matching. `workdir`
     # holds the writable overlays (ARCHITECTURE.md section 5a) and
     # saved packages; it defaults to a temporary directory the reactor
-    # removes on cleanup.
+    # removes on cleanup. `read_only: true` forces every mount
+    # read-only regardless of package metadata (the operator override
+    # documented in issue #27).
     def initialize(package: nil, mounts: nil, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
-                   store: nil, deploy: nil, registry: nil, workdir: nil)
+                   store: nil, deploy: nil, registry: nil, workdir: nil,
+                   read_only: false)
       @store = store
       @registry = registry
       @workdir = workdir || Dir.mktmpdir("capsium-reactor-")
       @own_workdir = workdir.nil?
       @mounts = mounts || [Mount.new(path: Mount::ROOT_PATH, package: package,
                                      store: store, registry: registry)]
+      apply_read_only if read_only
       @mounts.each { |mount| mount.attach_workdir(@workdir) }
       @port = port
       @cache_control = cache_control
@@ -127,6 +131,12 @@ module Capsium
     end
 
     private
+
+    # Applies the global --read-only override: every mount becomes
+    # read-only regardless of its package metadata or per-mount config.
+    def apply_read_only
+      @mounts.each { |mount| mount.writable_override = false }
+    end
 
     def setup_server(do_not_listen)
       server_options = { Port: @port }

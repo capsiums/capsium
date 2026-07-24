@@ -25,12 +25,13 @@ RSpec.describe "Reactor writable packages (REST CRUD over the overlay)" do
     Thread.list.each { |thread| thread.kill if thread != Thread.current }
   end
 
-  def build_reactor(sources, workdir)
+  def build_reactor(sources, workdir, read_only: false)
     entries = sources.map do |source|
       Capsium::Reactor::Mount::Entry.new(path: nil, source: source, store: nil)
     end
     Capsium::Reactor.new(mounts: Capsium::Reactor::Mount.build(entries),
-                         workdir: workdir, do_not_listen: true)
+                         workdir: workdir, do_not_listen: true,
+                         read_only: read_only)
   end
 
   # Calls the handler directly (rack-free) and captures the response.
@@ -316,6 +317,60 @@ RSpec.describe "Reactor writable packages (REST CRUD over the overlay)" do
         .to eq(200)
       expect(request_to(app, "/readonly-package/only-root.txt", method: "PUT",
                                                                 body: "ro")[:status]).to eq(403)
+    end
+  end
+
+  describe "operator --read-only override (issue #27)" do
+    let(:app) { build_reactor([writable_source], @workdir, read_only: true) }
+
+    it "rejects dataset writes with 403 even on a writable package" do
+      post = request_to(app, "/api/v1/data/notes", method: "POST",
+                                                   body: JSON.generate("title" => "T"))
+      expect(post[:status]).to eq(403)
+      expect(json(post)["error"]).to include("read-only")
+
+      put_ro = request_to(app, "/api/v1/data/notes/1", method: "PUT",
+                                                       body: JSON.generate("title" => "T"))
+      expect(put_ro[:status]).to eq(403)
+      expect(request_to(app, "/api/v1/data/notes/1", method: "DELETE")[:status])
+        .to eq(403)
+    end
+
+    it "rejects content writes with 403" do
+      expect(request_to(app, "/fresh.txt", method: "PUT", body: "x")[:status])
+        .to eq(403)
+      expect(request_to(app, "/index.html", method: "DELETE")[:status]).to eq(403)
+    end
+
+    it "still serves reads" do
+      expect(request_to(app, "/api/v1/data/notes")[:status]).to eq(200)
+      expect(json(request_to(app, "/api/v1/data/notes/1"))["title"])
+        .to eq("First note")
+      expect(request_to(app, "/index.html")[:status]).to eq(200)
+    end
+
+    it "leaves the workdir overlay empty (no writes recorded)" do
+      request_to(app, "/api/v1/data/notes", method: "POST",
+                                            body: JSON.generate("title" => "ignored"))
+      overlay = File.join(@workdir, "overlays", "writable-package")
+      expect(Dir.exist?(overlay)).to be(false)
+    end
+  end
+
+  describe "per-mount writable: false config (issue #27)" do
+    let(:app) do
+      entries = [
+        Capsium::Reactor::Mount::Entry.new(path: nil, source: writable_source,
+                                           store: nil, writable: false)
+      ]
+      Capsium::Reactor.new(mounts: Capsium::Reactor::Mount.build(entries),
+                           workdir: @workdir, do_not_listen: true)
+    end
+
+    it "rejects writes on the overridden mount" do
+      post = request_to(app, "/api/v1/data/notes", method: "POST",
+                                                   body: JSON.generate("title" => "T"))
+      expect(post[:status]).to eq(403)
     end
   end
 

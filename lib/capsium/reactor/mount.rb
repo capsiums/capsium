@@ -20,10 +20,22 @@ module Capsium
       # A mount entry as accepted from the CLI or a JSON config file:
       # "path" may be nil (the default is assigned on build), "source"
       # is a package directory or .cap file, "store" optionally
-      # overrides the global package store for this mount.
-      Entry = Data.define(:path, :source, :store)
+      # overrides the global package store for this mount, "writable"
+      # optionally forces the mount read-only regardless of package
+      # metadata (nil preserves the metadata-driven default per spec).
+      Entry = Data.define(:path, :source, :store, :writable) do
+        def initialize(path:, source:, store: nil, writable: nil)
+          super
+        end
+      end
 
       attr_reader :path, :package, :overlay
+
+      # Operator override on writability: nil preserves the spec default
+      # (writable unless the package declares "readOnly": true); false
+      # forces the mount read-only regardless of metadata. Set by the
+      # Reactor when --read-only is passed and by per-mount config.
+      attr_writer :writable_override
 
       # Parses a "--mount PATH=SOURCE" command-line value into an Entry.
       def self.parse_spec(spec)
@@ -32,7 +44,7 @@ module Capsium
           raise Error, "Invalid mount spec #{spec.inspect} (expected PATH=SOURCE)"
         end
 
-        Entry.new(path: path, source: source, store: nil)
+        Entry.new(path: path, source: source, store: nil, writable: nil)
       end
 
       # The mount entries of a JSON config file:
@@ -51,12 +63,33 @@ module Capsium
                          "needs a \"source\""
           end
 
+          writable = parse_writable(entry["writable"], config_file)
           Entry.new(path: entry["path"], source: entry["source"],
-                    store: entry["store"])
+                    store: entry["store"], writable: writable)
         end
       rescue JSON::ParserError => e
         raise Error, "Invalid mount config #{config_file}: #{e.message}"
       end
+
+      # Normalizes a JSON "writable" field into a tri-state usable by
+      # Mount#writable?: nil preserves the metadata-driven default;
+      # false forces the mount read-only at the operator's request.
+      # true is rejected — operators may only opt out of writability,
+      # not override a package's own readOnly declaration.
+      def self.parse_writable(value, config_file)
+        case value
+        when nil then nil
+        when false then false
+        when true
+          raise Error, "Invalid mount config #{config_file}: \"writable\": " \
+                       "true is not allowed (omit the field or set false; " \
+                       "packages opt into writability via metadata)"
+        else
+          raise Error, "Invalid mount config #{config_file}: \"writable\" " \
+                       "must be a boolean, got #{value.inspect}"
+        end
+      end
+      private_class_method :parse_writable
 
       # Builds the mounts for a list of entries: loads each package,
       # assigns default paths (first entry "/", each additional
@@ -70,7 +103,8 @@ module Capsium
           package = load_package(entry.source, package_store, registry)
           path = entry.path || default_path(index, package)
           built << new(path: path, package: package,
-                       store: package_store, registry: registry)
+                       store: package_store, registry: registry,
+                       writable: entry.writable)
         end
         check_conflicts!(built)
         built
@@ -111,10 +145,12 @@ module Capsium
         normalized.chomp(ROOT_PATH)
       end
 
-      def initialize(path:, package:, store: nil, registry: nil, workdir: nil)
+      def initialize(path:, package:, store: nil, registry: nil, workdir: nil,
+                     writable: nil)
         @path = self.class.normalize_path(path)
         @store = store
         @registry = registry
+        @writable_override = writable
         @package = self.class.load_package(package, store, registry)
         attach_workdir(workdir) if workdir
       end
@@ -126,9 +162,13 @@ module Capsium
         @overlay = Overlay.new(root: File.join(workdir, "overlays", @package.name))
       end
 
-      # Writable unless the package declares "readOnly": true; writes
-      # then produce 403s and no overlay state is recorded.
+      # Writable unless the operator forced read-only (per-mount config
+      # or the reactor --read-only flag) AND the package does not declare
+      # "readOnly": true. Operator override can only opt OUT of
+      # writability — never back in over a package's own readOnly.
       def writable?
+        return false if @writable_override == false
+
         !@overlay.nil? && @package.metadata.read_only != true
       end
 
