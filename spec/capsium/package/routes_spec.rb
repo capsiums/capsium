@@ -101,6 +101,77 @@ RSpec.describe Capsium::Package::Routes do
     end
   end
 
+  describe "Annex E object-keyed-by-path form (issue #26)" do
+    before do
+      File.write(
+        routes_path,
+        JSON.pretty_generate(
+          "routes" => {
+            "/" => { "resource" => "content/index.html" },
+            "/api/v1/data/animals" => { "dataset" => "animals" }
+          }
+        )
+      )
+    end
+
+    it "expands object-keyed routes to the canonical array form" do
+      expect(JSON.parse(routes.to_json)).to eq(
+        "routes" => [
+          { "path" => "/", "resource" => "content/index.html" },
+          { "path" => "/api/v1/data/animals", "dataset" => "animals" }
+        ]
+      )
+    end
+
+    it "resolves object-keyed routes identically to array-form routes" do
+      expect(routes.resolve("/").resource).to eq("content/index.html")
+      expect(routes.resolve("/api/v1/data/animals").dataset).to eq("animals")
+    end
+
+    it "also accepts the legacy target form inside an object-keyed entry" do
+      File.write(
+        routes_path,
+        JSON.pretty_generate(
+          "routes" => {
+            "/" => { "target" => { "file" => "content/index.html" } }
+          }
+        )
+      )
+
+      expect(routes.resolve("/").resource).to eq("content/index.html")
+    end
+
+    it "preserves an explicit inner path that matches the key" do
+      File.write(
+        routes_path,
+        JSON.pretty_generate(
+          "routes" => { "/about" => { "path" => "/about",
+                                      "resource" => "content/about.html" } }
+        )
+      )
+
+      expect(routes.resolve("/about").resource).to eq("content/about.html")
+    end
+
+    it "rejects an inner path that conflicts with the outer key" do
+      File.write(
+        routes_path,
+        JSON.pretty_generate(
+          "routes" => { "/about" => { "path" => "/different",
+                                      "resource" => "content/x.html" } }
+        )
+      )
+
+      expect { routes }.to raise_error(Capsium::Error, /conflicts with inner/)
+    end
+
+    it "rejects a non-array, non-object, non-nil routes value" do
+      File.write(routes_path, JSON.generate("routes" => "not valid"))
+
+      expect { routes }.to raise_error(Capsium::Error, /must be an array or object/)
+    end
+  end
+
   describe "mutators" do
     before do
       File.write(routes_path, JSON.pretty_generate("routes" => []))
