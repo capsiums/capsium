@@ -44,8 +44,10 @@ module Capsium
       SAFE_NAME_PATTERN = /\A[\w.-]+\z/
 
       autoload :SqliteOps, "capsium/reactor/overlay/sqlite_ops"
+      autoload :HistoryOps, "capsium/reactor/overlay/history_ops"
 
       include SqliteOps
+      include HistoryOps
 
       attr_reader :root, :tombstones
 

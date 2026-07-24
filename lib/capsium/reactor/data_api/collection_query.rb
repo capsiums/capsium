@@ -24,7 +24,9 @@ module Capsium
       class CollectionQuery
         DEFAULT_LIMIT = 100
         MAX_LIMIT = 1000
-        RESERVED = %w[limit offset sort].freeze
+        # Reserved query params (not treated as filters): pagination/
+        # sort controls plus the action-history endpoints (at, from, to).
+        RESERVED = %w[limit offset sort at from to].freeze
 
         attr_reader :limit, :offset, :sorts, :filters
 

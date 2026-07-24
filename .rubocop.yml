@@ -43,9 +43,10 @@ Metrics/ParameterLists:
 
 Metrics/ClassLength:
   # The reactor (request dispatch + lifecycle), the introspection
-  # endpoint set, and the overlay (JSON + SQLite dataset paths under
-  # one roof) all cluster around this size.
-  Max: 175
+  # endpoint set, and the overlay (JSON + SQLite + history paths
+  # composed via the SqliteOps/HistoryOps modules) all cluster
+  # around this size.
+  Max: 200
 
 Metrics/MethodLength:
   Max: 25
