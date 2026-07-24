@@ -36,6 +36,9 @@ module Capsium
                          desc: "Force every mount read-only regardless of " \
                                "package metadata (operator override; the " \
                                "default stays metadata-driven per spec)"
+      option :watch, type: :boolean, default: false,
+                     desc: "Watch the root mount's source tree and reload " \
+                           "on file change (single-package mode only)"
 
       # Thor array options are last-wins when the flag repeats; collect
       # every --mount value (both "--mount V" and "--mount=V" forms)
@@ -88,7 +91,8 @@ module Capsium
           deploy: options[:deploy],
           registry: options[:registry],
           workdir: options[:workdir],
-          read_only: options[:read_only]
+          read_only: options[:read_only],
+          watch: options[:watch]
         )
         reactor.serve
       rescue Capsium::Error => e
