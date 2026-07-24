@@ -110,16 +110,11 @@ module Capsium
         respond_not_found(response)
       end
 
-      # Write guards: 403 for a read-only mount, 501 for a SQLite
-      # dataset (not file-backed JSON/YAML).
-      def writable?(dataset, response)
+      # Write guard: 403 for a read-only mount. SQLite datasets are
+      # served via the copy-on-write overlay (ARCHITECTURE.md section 5a).
+      def writable?(_dataset, response)
         unless @mount.writable?
           respond_error(response, 403, "package #{@mount.package.name} is read-only")
-          return false
-        end
-        if dataset.config.sqlite?
-          respond_error(response, 501,
-                        "dataset #{dataset.name} is SQLite; writes are not supported")
           return false
         end
         true

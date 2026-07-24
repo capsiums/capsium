@@ -286,13 +286,56 @@ RSpec.describe "Reactor writable packages (REST CRUD over the overlay)" do
       build_reactor([source], @workdir)
     end
 
-    it "serves reads but answers 501 for writes" do
-      expect(request_to(app, "/api/v1/data/sales")[:status]).to eq(200)
+    it "serves reads from the base DB before any write" do
+      result = request_to(app, "/api/v1/data/sales")
+      expect(result[:status]).to eq(200)
+      rows = json(result)["sales"]
+      expect(rows.size).to eq(1)
+    end
 
-      result = request_to(app, "/api/v1/data/sales", method: "POST",
-                                                     body: JSON.generate("id" => "1"))
-      expect(result[:status]).to eq(501)
-      expect(json(result)["error"]).to include("SQLite")
+    it "appends, reads, updates, and deletes via the copy-on-write overlay" do
+      created = request_to(app, "/api/v1/data/sales", method: "POST",
+                                                      body: JSON.generate("total" => 19.99))
+      expect(created[:status]).to eq(201)
+      expect(created[:headers]["Location"]).to match(%r{/api/v1/data/sales/\d+})
+
+      collection = json(request_to(app, "/api/v1/data/sales"))["sales"]
+      expect(collection.size).to eq(2)
+      new_id = created[:headers]["Location"].split("/").last
+
+      updated = request_to(app, "/api/v1/data/sales/#{new_id}",
+                           method: "PUT",
+                           body: JSON.generate("total" => 29.99))
+      expect(updated[:status]).to eq(200)
+      expect(json(updated)["total"]).to eq(29.99)
+
+      deleted = request_to(app, "/api/v1/data/sales/#{new_id}", method: "DELETE")
+      expect(deleted[:status]).to eq(204)
+      expect(request_to(app, "/api/v1/data/sales/#{new_id}")[:status]).to eq(404)
+    end
+
+    it "keeps the base database immutable on disk" do
+      # Touch app to ensure the source directory (and the SQLite DB
+      # created inside it) is laid out before we record its size.
+      app
+      base_path = File.join(@workdir, "sqlite-package", "data", "sales.db")
+      base_size = File.size(base_path)
+      request_to(app, "/api/v1/data/sales", method: "POST",
+                                            body: JSON.generate("total" => 100.0))
+      request_to(app, "/api/v1/data/sales", method: "DELETE")
+
+      expect(File.size(base_path)).to eq(base_size)
+    end
+
+    it "returns 404 for an unknown item and 409 for a duplicate id on append" do
+      expect(request_to(app, "/api/v1/data/sales/9999")[:status]).to eq(404)
+      expect(request_to(app, "/api/v1/data/sales/9999", method: "DELETE")[:status]).to eq(404)
+
+      existing_id = json(request_to(app, "/api/v1/data/sales"))["sales"].first["id"]
+      dupe = request_to(app, "/api/v1/data/sales", method: "POST",
+                                                   body: JSON.generate("id" => existing_id,
+                                                                       "total" => 1.0))
+      expect(dupe[:status]).to eq(409)
     end
   end
 

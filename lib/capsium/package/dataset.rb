@@ -56,6 +56,54 @@ module Capsium
         JSON::Validator.validate!(load_schema, @data.to_json)
       end
 
+      # PK column for a SQLite dataset's table: the declared PRIMARY KEY
+      # column when one exists, falling back to "id" if the table has a
+      # column by that name, or nil when neither is present (the reactor
+      # then rejects writes with a clear error). PK detection is read
+      # against the base DB; the overlay DB is a copy with the same
+      # schema, so the column set is identical. Tolerates the PRAGMA
+      # result shape changing between Array-of-Arrays and Array-of-Hashes
+      # based on the connection's results_as_hash setting.
+      def sqlite_pk_column(db = nil)
+        return nil unless @config.table
+
+        owns_db = db.nil?
+        db ||= SQLite3::Database.new(source_path)
+        info = db.execute("PRAGMA table_info(#{@config.table});")
+        find_pk_column(info)
+      ensure
+        db&.close if owns_db
+      end
+
+      def find_pk_column(info)
+        pk_row = info.find { |row| pragma_value(row, :pk).to_i == 1 }
+        pk_row ||= info.find { |row| pragma_value(row, :name) == "id" }
+        pk_row && pragma_value(pk_row, :name)
+      end
+      private :find_pk_column
+
+      # All column names for the configured table, in declaration order.
+      def sqlite_columns(db = nil)
+        return [] unless @config.table
+
+        owns_db = db.nil?
+        db ||= SQLite3::Database.new(source_path)
+        db.execute("PRAGMA table_info(#{@config.table});").map do |row|
+          pragma_value(row, :name)
+        end
+      ensure
+        db&.close if owns_db
+      end
+
+      def pragma_value(row, key)
+        return row[key.to_s] if row.is_a?(Hash)
+        return row[5] if key == :pk
+        return row[1] if key == :name
+
+        nil
+      end
+      private :pragma_value
+
       # File-existence and schema validations for this dataset. Returns a
       # list of human-readable problems; empty when valid.
       def validation_errors
@@ -110,6 +158,7 @@ module Capsium
 
       def load_sqlite_data
         db = SQLite3::Database.new(source_path)
+        db.results_as_hash = true
         tables = @config.table ? [@config.table] : sqlite_tables(db)
         tables.to_h do |table_name|
           [table_name, db.execute("SELECT * FROM #{table_name};")]

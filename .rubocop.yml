@@ -30,6 +30,7 @@ Metrics/BlockLength:
 Metrics/ModuleLength:
   Exclude:
     - 'spec/**/*'
+  Max: 175
 
 # Spec helpers take the parameters the fixtures need; the reactor
 # constructor takes one keyword per deploy-time concern (keyword args
@@ -41,9 +42,10 @@ Metrics/ParameterLists:
     - 'spec/**/*'
 
 Metrics/ClassLength:
-  # The reactor (request dispatch + lifecycle) and the introspection
-  # endpoint set grew with the phase-3 follow-ons.
-  Max: 150
+  # The reactor (request dispatch + lifecycle), the introspection
+  # endpoint set, and the overlay (JSON + SQLite dataset paths under
+  # one roof) all cluster around this size.
+  Max: 175
 
 Metrics/MethodLength:
   Max: 25
@@ -53,3 +55,8 @@ Metrics/AbcSize:
 
 Metrics/CyclomaticComplexity:
   Max: 8
+
+# `db` (SQLite handle), `id` (dataset item key), and `pk` (primary-key
+# column) are conventional short names; all three are allowed.
+Naming/MethodParameterName:
+  AllowedNames: [io, id, to, by, on, in, at, ip, db, pk]
