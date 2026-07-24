@@ -8,9 +8,11 @@ RSpec.describe Capsium::Reactor::Mount do
   let(:fixtures_path) { File.expand_path(File.join(__dir__, "..", "..", "fixtures")) }
   let(:bare_source) { File.join(fixtures_path, "bare-package") }
   let(:data_source) { File.join(fixtures_path, "data-package") }
+  let(:readonly_source) { File.join(fixtures_path, "readonly-package") }
 
-  def entry(path, source, store: nil)
-    described_class::Entry.new(path: path, source: source, store: store)
+  def entry(path, source, store: nil, writable: nil)
+    described_class::Entry.new(path: path, source: source, store: store,
+                               writable: writable)
   end
 
   describe ".parse_spec" do
@@ -57,6 +59,52 @@ RSpec.describe Capsium::Reactor::Mount do
         expect(entries.first.source).to eq(bare_source)
         expect(entries.last.path).to eq("/data")
         expect(entries.last.store).to eq("/tmp/store")
+      end
+    end
+
+    it "accepts writable: false per mount (operator opt-out)" do
+      Dir.mktmpdir do |dir|
+        config = File.join(dir, "mounts.json")
+        File.write(config, JSON.generate(
+                             "mounts" => [
+                               { "path" => "/", "source" => bare_source,
+                                 "writable" => false },
+                               { "path" => "/data", "source" => data_source }
+                             ]
+                           ))
+
+        entries = described_class.config_entries(config)
+
+        expect(entries.first.writable).to be(false)
+        expect(entries.last.writable).to be_nil
+      end
+    end
+
+    it "rejects writable: true (operators cannot force writability over metadata)" do
+      Dir.mktmpdir do |dir|
+        config = File.join(dir, "mounts.json")
+        File.write(config, JSON.generate(
+                             "mounts" => [
+                               { "path" => "/", "source" => bare_source,
+                                 "writable" => true }
+                             ]
+                           ))
+        expect { described_class.config_entries(config) }
+          .to raise_error(Capsium::Error, /writable.*true is not allowed/)
+      end
+    end
+
+    it "rejects non-boolean writable values" do
+      Dir.mktmpdir do |dir|
+        config = File.join(dir, "mounts.json")
+        File.write(config, JSON.generate(
+                             "mounts" => [
+                               { "path" => "/", "source" => bare_source,
+                                 "writable" => "yes" }
+                             ]
+                           ))
+        expect { described_class.config_entries(config) }
+          .to raise_error(Capsium::Error, /must be a boolean/)
       end
     end
 
@@ -154,6 +202,39 @@ RSpec.describe Capsium::Reactor::Mount do
       expect(named_mount.inner_path("/data/index")).to eq("/index")
       expect(root_mount.inner_path("/index")).to eq("/index")
       expect(root_mount.inner_path("/")).to eq("/")
+    end
+  end
+
+  describe "#writable? operator override (issue #27)" do
+    let(:workdir) { Dir.mktmpdir }
+
+    after { FileUtils.remove_entry(workdir) if File.directory?(workdir) }
+
+    it "is writable by default for a package without readOnly metadata" do
+      mount = described_class.new(path: "/", package: bare_source,
+                                  workdir: workdir)
+      expect(mount.writable?).to be(true)
+    end
+
+    it "becomes read-only when writable: false is passed at construction" do
+      mount = described_class.new(path: "/", package: bare_source,
+                                  workdir: workdir, writable: false)
+      expect(mount.writable?).to be(false)
+    end
+
+    it "becomes read-only when writable_override is set to false post-construction" do
+      mount = described_class.new(path: "/", package: bare_source,
+                                  workdir: workdir)
+      expect(mount.writable?).to be(true)
+
+      mount.writable_override = false
+      expect(mount.writable?).to be(false)
+    end
+
+    it "stays read-only for a readOnly: true package even without override" do
+      mount = described_class.new(path: "/", package: readonly_source,
+                                  workdir: workdir)
+      expect(mount.writable?).to be(false)
     end
   end
 end

@@ -320,6 +320,27 @@ RSpec.describe "Reactor with multiple mounted packages" do
     ensure
       created&.cleanup
     end
+
+    it "forces every mount read-only via the --read-only flag (issue #27)" do
+      created = nil
+      allow(Capsium::Reactor).to receive(:new).and_wrap_original do |original, **kwargs|
+        created = original.call(**kwargs)
+        allow(created).to receive(:serve)
+        created
+      end
+
+      Dir.mktmpdir do |dir|
+        Capsium::Cli.start(["reactor", "serve", data_source,
+                            "--mount", "/bare=#{bare_source}",
+                            "--read-only",
+                            "--workdir", dir, "--do_not_listen",
+                            "--port", "18998"])
+      end
+
+      expect(created.mounts.map(&:writable?)).to eq([false, false])
+    ensure
+      created&.cleanup
+    end
   end
 
   def http_get(port, path)
