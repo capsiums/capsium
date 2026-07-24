@@ -16,6 +16,8 @@ module Capsium
       PREFIX = "/api/v1/data/"
       COLLECTION_PATTERN = %r{\A/api/v1/data/(?<dataset>[^/]+)\z}
       ITEM_PATTERN = %r{\A/api/v1/data/(?<dataset>[^/]+)/(?<id>[^/]+)\z}
+      HISTORY_PATTERN = %r{\A/api/v1/data/(?<dataset>[^/]+)/history\z}
+      HISTORY_ITEM_PATTERN = %r{\A/api/v1/data/(?<dataset>[^/]+)/history/(?<seq>\d+)\z}
 
       def self.path?(inner_path)
         inner_path.start_with?(PREFIX)
@@ -26,10 +28,13 @@ module Capsium
       end
 
       # The declared dataset route a data path addresses (the collection
-      # route, also for item paths), or nil when the package does not
-      # route this dataset — undeclared datasets are not served.
+      # route, also for item/history paths), or nil when the package
+      # does not route this dataset — undeclared datasets are not served.
       def route_for(inner_path)
-        match = COLLECTION_PATTERN.match(inner_path) || ITEM_PATTERN.match(inner_path)
+        match = COLLECTION_PATTERN.match(inner_path) ||
+                ITEM_PATTERN.match(inner_path) ||
+                HISTORY_PATTERN.match(inner_path) ||
+                HISTORY_ITEM_PATTERN.match(inner_path)
         return nil unless match
 
         route = @mount.routes.resolve("#{PREFIX}#{match[:dataset]}")
@@ -43,6 +48,9 @@ module Capsium
         dataset = @mount.package.storage.dataset(route.dataset)
         return respond_not_found(response) unless dataset
 
+        return handle_history(dataset, inner_path, request, response) if history?(inner_path)
+        return handle_diff(dataset, request, response) if diff_request?(request)
+
         collection = COLLECTION_PATTERN.match(inner_path)
         if collection
           handle_collection(dataset, request, response)
@@ -50,6 +58,52 @@ module Capsium
           handle_item(dataset, ITEM_PATTERN.match(inner_path)[:id], request, response)
         end
       end
+
+      def history?(inner_path)
+        inner_path.end_with?("/history") || inner_path.include?("/history/")
+      end
+
+      def diff_request?(request)
+        request.request_method == "GET" &&
+          query_hash(request)&.key?("from") &&
+          query_hash(request).key?("to")
+      end
+
+      def handle_history(dataset, inner_path, request, response)
+        unless request.request_method == "GET"
+          return respond_method_not_allowed(response,
+                                            allow: "GET")
+        end
+
+        if (match = HISTORY_ITEM_PATTERN.match(inner_path))
+          entry = @mount.overlay.history_at(dataset, match[:seq].to_i)
+          return respond_not_found(response) unless entry
+
+          return respond_json(response, 200, entry)
+        end
+
+        respond_json(response, 200, @mount.overlay.history(dataset))
+      end
+
+      def handle_diff(dataset, request, response)
+        unless request.request_method == "GET"
+          return respond_method_not_allowed(response,
+                                            allow: "GET")
+        end
+
+        query = query_hash(request)
+        from = parse_seq(query["from"])
+        to = parse_seq(query["to"])
+        result = @mount.overlay.diff(dataset, from, to)
+        respond_json(response, 200, result)
+      end
+
+      def parse_seq(value)
+        Integer(value)
+      rescue ArgumentError, TypeError
+        0
+      end
+      private :parse_seq
 
       private
 
@@ -62,8 +116,14 @@ module Capsium
       end
 
       def read_collection(dataset, request, response)
-        query = CollectionQuery.from_query(query_hash(request))
-        result = @mount.overlay.query_collection(dataset, query)
+        query = query_hash(request)
+        if query&.key?("at")
+          return respond_json(response, 200,
+                              @mount.overlay.collection_at(dataset, parse_seq(query["at"])))
+        end
+
+        cq = CollectionQuery.from_query(query)
+        result = @mount.overlay.query_collection(dataset, cq)
         return respond_not_modified(response) if etag_match?(request, result[:etag])
 
         response["ETag"] = result[:etag]
