@@ -42,6 +42,7 @@ module Capsium
     autoload :Route, "capsium/package/routes_config"
     autoload :Routes, "capsium/package/routes"
     autoload :RoutesConfig, "capsium/package/routes_config"
+    autoload :Sbom, "capsium/package/sbom"
     autoload :Security, "capsium/package/security"
     autoload :SecurityConfig, "capsium/package/security_config"
     autoload :SecurityData, "capsium/package/security_config"

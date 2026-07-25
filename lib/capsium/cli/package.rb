@@ -53,6 +53,11 @@ module Capsium
       option :bundle_deps, type: :boolean, default: false, aliases: "--bundle",
                            desc: "Embed the resolved dependencies under packages/ " \
                                  "so the .cap activates with no store or registry"
+      option :reproducible, type: :boolean, default: false,
+                            desc: "Sort entries and normalize mtimes so identical " \
+                                  "inputs produce identical bytes"
+      option :sbom, type: :boolean, default: false,
+                    desc: "Generate an SPDX 2.3 SBOM at sbom.spdx.json inside the .cap"
       option :store, type: :string, desc: "Package store directory (default: CAPSIUM_STORE)"
       option :registry, type: :string, desc: "Registry reference (default: CAPSIUM_REGISTRY)"
 
