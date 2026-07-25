@@ -53,6 +53,7 @@ RSpec.describe Capsium::Reactor do
       request = instance_double(WEBrick::HTTPRequest, path: request_path,
                                                       request_method: "GET")
       response = instance_double(WEBrick::HTTPResponse)
+      allow(request).to receive(:[]).and_return(nil)
       allow(response).to receive(:[]=)
       allow(response).to receive(:body=)
       allow(response).to receive(:status=)
@@ -113,6 +114,7 @@ RSpec.describe Capsium::Reactor do
     it "rejects POST to a static route with 405 and Allow: GET, HEAD" do
       request = instance_double(WEBrick::HTTPRequest, path: "/example.css",
                                                       request_method: "POST")
+      allow(request).to receive(:[]).and_return(nil)
       app.handle_request(request, response)
 
       expect(response).to have_received(:status=).with(405)
@@ -122,6 +124,7 @@ RSpec.describe Capsium::Reactor do
     it "rejects POST to introspection with 405 and Allow: GET" do
       request = instance_double(WEBrick::HTTPRequest, path: "/api/v1/introspect/metadata",
                                                       request_method: "POST")
+      allow(request).to receive(:[]).and_return(nil)
       app.handle_request(request, response)
 
       expect(response).to have_received(:status=).with(405)
@@ -182,6 +185,7 @@ RSpec.describe Capsium::Reactor do
     let(:response) { instance_double(WEBrick::HTTPResponse) }
 
     before do
+      allow(request).to receive(:[]).and_return(nil)
       allow(response).to receive(:[]=)
       allow(response).to receive(:body=)
       allow(response).to receive(:status=)

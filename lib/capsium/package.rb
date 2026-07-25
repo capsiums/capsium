@@ -14,6 +14,7 @@ module Capsium
     autoload :AuthenticationData, "capsium/package/authentication_config"
     autoload :BasicAuthConfig, "capsium/package/authentication_config"
     autoload :Bundle, "capsium/package/bundle"
+    autoload :Brotli, "capsium/package/brotli"
     autoload :Dataset, "capsium/package/dataset"
     autoload :DatasetConfig, "capsium/package/storage_config"
     autoload :DependencyError, "capsium/package/dependency_resolver"

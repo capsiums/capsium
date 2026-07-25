@@ -37,6 +37,16 @@ module Capsium
         @config.resources
       end
 
+      # Adds a resource to the manifest, then saves. Used by
+      # post-solidify pipeline steps (brotli sidecars, SBOM) that
+      # need their generated files to be checksum-covered.
+      def add_resource(resource_path, type: nil, visibility: "exported")
+        @config.add_resource(resource_path,
+                             type: type || mime_from_path(resource_path),
+                             visibility: visibility)
+        save_to_file
+      end
+
       def lookup(path)
         resources[path]
       end

@@ -118,6 +118,7 @@ RSpec.describe "Encapsulated packages (bundled dependencies)" do
 
       request = instance_double(WEBrick::HTTPRequest, path: "/vendor/public.txt",
                                                       request_method: "GET")
+      allow(request).to receive(:[]).and_return(nil)
       response = instance_double(WEBrick::HTTPResponse)
       result = {}
       allow(response).to receive(:status=) { |value| result[:status] = value }
