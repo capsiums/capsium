@@ -17,6 +17,10 @@ module Capsium
 
     DRIVE_LETTER_PATTERN = %r{\A[A-Za-z]:[/\\]}
     DOT_ENTRIES = [".", ".."].freeze
+    # Fixed timestamp for reproducible builds: deterministic across runs
+    # and reactors (otherwise identical inputs produce identical .caps).
+    # Zip::DOSTime so rubyzip's binary encoder accepts it directly.
+    REPRODUCIBLE_EPOCH = Zip::DOSTime.at(0)
 
     def pack(package, options = {})
       output_file_name = "#{package.metadata.name}-#{package.metadata.version}.cap"
@@ -51,6 +55,26 @@ module Capsium
         entries.each do |file|
           zipfile.add(file.sub("#{package.path}/", ""), file)
         end
+      end
+    end
+
+    # Reproducible variant of compress_package: sorts entries by their
+    # archive path before adding, normalizes every entry's mtime to a
+    # fixed epoch, and disables the file comment so identical inputs
+    # produce identical bytes regardless of the packer's host
+    # filesystem, locale, or invocation time.
+    def compress_package_reproducible(package, cap_file)
+      entries = Dir.glob(File.join(package.path, "**", "**"), File::FNM_DOTMATCH).reject do |file|
+        File.expand_path(file) == File.expand_path(cap_file) ||
+          DOT_ENTRIES.include?(File.basename(file))
+      end
+      sorted = entries.sort_by { |file| file.sub("#{package.path}/", "") }
+      Zip::File.open(cap_file, create: true) do |zipfile|
+        sorted.each do |file|
+          zipfile.add(file.sub("#{package.path}/", ""), file)
+        end
+        zipfile.entries.each { |entry| entry.time = REPRODUCIBLE_EPOCH }
+        zipfile.comment = ""
       end
     end
 
@@ -99,7 +123,9 @@ module Capsium
     end
 
     # Builds the .cap inside the temporary directory: copy, optional
-    # dependency bundling, solidify, security.json, compress.
+    # dependency bundling, solidify, security.json, optional SBOM,
+    # compress. Reproducible flag swaps the compression path for the
+    # deterministic variant.
     def build_cap(package, directory, output_file_name, options)
       FileUtils.cp_r("#{package.path}/.", directory)
       strip_security_artifacts(directory)
@@ -107,8 +133,13 @@ module Capsium
       new_package = load_packed_package(directory, options)
       new_package.solidify
       generate_security(new_package)
+      generate_sbom(new_package) if options[:sbom]
       built_path = File.join(directory, output_file_name)
-      compress_package(new_package, built_path)
+      if options[:reproducible]
+        compress_package_reproducible(new_package, built_path)
+      else
+        compress_package(new_package, built_path)
+      end
       puts "Package built at: #{built_path}"
     end
 
@@ -160,6 +191,10 @@ module Capsium
     def generate_security(package)
       security = Package::Security.generate(package.path)
       security.save_to_file
+    end
+
+    def generate_sbom(package)
+      Package::Sbom.generate(package)
     end
 
     # security.json is regenerated on pack; signing artifacts are dropped
