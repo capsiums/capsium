@@ -154,6 +154,7 @@ RSpec.describe "Composite packages (ARCHITECTURE.md section 4a)" do
     def request_to(app, path)
       request = instance_double(WEBrick::HTTPRequest, path: path,
                                                       request_method: "GET")
+      allow(request).to receive(:[]).and_return(nil)
       response = instance_double(WEBrick::HTTPResponse)
       result = { headers: {} }
       allow(response).to receive(:status=) { |value| result[:status] = value }

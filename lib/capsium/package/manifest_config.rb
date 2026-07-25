@@ -59,6 +59,11 @@ module Capsium
         self.resources = resources.sort.to_h
         self
       end
+
+      def add_resource(path, type:, visibility: "exported")
+        resources[path] = Resource.new(type: type, visibility: visibility)
+        sort!
+      end
     end
   end
 end

@@ -59,7 +59,7 @@ module Capsium
         return respond_not_found(response) unless route
         return unless authorized?(identity, route, response)
 
-        serve_route(mount, route, response)
+        serve_route(mount, route, request, response)
       end
 
       def serve_data_api(mount, identity, inner, request, response)
@@ -92,17 +92,27 @@ module Capsium
         end
       end
 
-      def serve_route(mount, route, response)
+      def serve_route(mount, route, request, response)
         case route.kind
         when :dataset then serve_dataset(mount, route.dataset, response)
-        when :resource then serve_file(mount, route, response)
+        when :resource then serve_file(mount, route, request, response)
         else respond_not_implemented(response)
         end
       end
 
-      def serve_file(mount, route, response)
+      def serve_file(mount, route, request, response)
         content_path = mount.merged_view.resolve(route.resource)
         return respond_not_found(response) unless content_path
+
+        brotli_path = brotli_sidecar_for(content_path, request)
+        if brotli_path
+          response.status = 200
+          response["Content-Type"] = content_type_for(mount, route, content_path)
+          response["Content-Encoding"] = "br"
+          response["Vary"] = vary_header(request, "Accept-Encoding")
+          response.body = File.binread(brotli_path)
+          return
+        end
 
         body, headers = inherited_processing(route, File.read(content_path),
                                              headers_for(route))
@@ -110,6 +120,23 @@ module Capsium
         response["Content-Type"] = content_type_for(mount, route, content_path)
         headers.each { |name, value| response[name] = value }
         response.body = body
+      end
+
+      # Returns the path to a brotli-precompressed sidecar when the
+      # client accepts br encoding AND a <file>.br sidecar exists on
+      # disk alongside the resolved resource. Otherwise nil — the
+      # caller serves the original file uncompressed.
+      def brotli_sidecar_for(content_path, request)
+        accept = request["Accept-Encoding"].to_s
+        return nil unless accept.split(",").map(&:strip).any?("br")
+
+        sidecar = "#{content_path}.br"
+        File.file?(sidecar) ? sidecar : nil
+      end
+
+      def vary_header(request, value)
+        existing = request["Vary"].to_s
+        existing.empty? ? value : "#{existing}, #{value}"
       end
 
       # Route inheritance processing (05x-routing section "Route

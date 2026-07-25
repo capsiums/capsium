@@ -58,6 +58,10 @@ module Capsium
                                   "inputs produce identical bytes"
       option :sbom, type: :boolean, default: false,
                     desc: "Generate an SPDX 2.3 SBOM at sbom.spdx.json inside the .cap"
+      option :brotli, type: :boolean, default: false,
+                      desc: "Generate brotli-precompressed sidecars (<file>.br) for " \
+                            "text resources so the reactor can serve them with zero " \
+                            "runtime cost"
       option :store, type: :string, desc: "Package store directory (default: CAPSIUM_STORE)"
       option :registry, type: :string, desc: "Registry reference (default: CAPSIUM_REGISTRY)"
 

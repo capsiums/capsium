@@ -123,15 +123,17 @@ module Capsium
     end
 
     # Builds the .cap inside the temporary directory: copy, optional
-    # dependency bundling, solidify, security.json, optional SBOM,
-    # compress. Reproducible flag swaps the compression path for the
-    # deterministic variant.
+    # dependency bundling, solidify, optional brotli sidecars (extend
+    # the manifest), security.json (covers everything in the manifest
+    # at this point), optional SBOM, compress. Reproducible flag swaps
+    # the compression path for the deterministic variant.
     def build_cap(package, directory, output_file_name, options)
       FileUtils.cp_r("#{package.path}/.", directory)
       strip_security_artifacts(directory)
       bundle_dependencies(directory, options) if options[:bundle_deps]
       new_package = load_packed_package(directory, options)
       new_package.solidify
+      generate_brotli(new_package) if options[:brotli]
       generate_security(new_package)
       generate_sbom(new_package) if options[:sbom]
       built_path = File.join(directory, output_file_name)
@@ -195,6 +197,10 @@ module Capsium
 
     def generate_sbom(package)
       Package::Sbom.generate(package)
+    end
+
+    def generate_brotli(package)
+      Package::Brotli.generate(package)
     end
 
     # security.json is regenerated on pack; signing artifacts are dropped
