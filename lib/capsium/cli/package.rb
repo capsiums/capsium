@@ -122,12 +122,16 @@ module Capsium
         puts "Package signed: #{path_to_package}"
       end
 
-      desc "verify-signature PACKAGE_PATH [--cert CERT-or-PUB] [--openpgp]",
+      desc "verify-signature PACKAGE_PATH [--cert CERT-or-PUB] [--openpgp] [--cosign]",
            "Verify the declared digital signature (auto-detected from security.json)"
       option :cert, type: :string, desc: "certificate or public key (default: embedded)"
       option :openpgp, type: :boolean, default: false, desc: "verify as OpenPGP"
+      option :cosign, type: :boolean, default: false,
+                      desc: "verify via cosign keyless signing (sigstore bundle)"
 
       def verify_signature(path_to_package)
+        return verify_cosign(path_to_package) if options[:cosign]
+
         verifier = options[:openpgp] ? Capsium::Package::OpenPgpSigner : Capsium::Package::Signer
         unless verifier.verify_package(path_to_package, options[:cert])
           raise Thor::Error, "Signature verification failed: #{path_to_package}"
@@ -136,6 +140,27 @@ module Capsium
         puts "Signature valid: #{path_to_package}"
       rescue Capsium::Package::Signer::SignatureError => e
         raise Thor::Error, e.message
+      end
+
+      # Cosign keyless verification: shells out to `cosign verify-blob`
+      # against an adjacent .sigstore.json bundle. The bundle is
+      # produced by `cosign sign-blob --yes` in a release workflow
+      # (GitHub OIDC identity, no long-lived keys).
+      def verify_cosign(path_to_package)
+        bundle = "#{path_to_package}.sigstore.json"
+        raise Thor::Error, "no sigstore bundle found at #{bundle}" unless File.file?(bundle)
+        unless system("cosign", "verify-blob", path_to_package,
+                      "--bundle", bundle, "--certificate-identity-regexp",
+                      "https://github.com/capsiums/",
+                      "--certificate-oidc-issuer",
+                      "https://token.actions.githubusercontent.com",
+                      out: $stdout, err: $stderr)
+          raise Thor::Error, "cosign verification failed for #{path_to_package}"
+        end
+
+        puts "Cosign signature valid: #{path_to_package}"
+      rescue Errno::ENOENT
+        raise Thor::Error, "cosign CLI not found; install from https://cosign.dev"
       end
 
       desc "encrypt PACKAGE_PATH -o OUT.cap [--public-key PUB.pem | --openpgp --recipient PUB]",
