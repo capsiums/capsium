@@ -64,7 +64,8 @@ module Capsium
     include Preparation
 
     attr_reader :name, :path, :manifest, :metadata, :routes, :storage,
-                :security, :load_type, :resolved_dependencies, :authentication
+                :security, :authentication, :dependencies, :resolved_dependencies,
+                :original_path, :load_type, :zip_source_path
 
     MANIFEST_FILE = "manifest.json"
     METADATA_FILE = "metadata.json"
@@ -88,8 +89,10 @@ module Capsium
     # detection during recursive resolution. `bundle` is internal too:
     # the ancestor bundle serving re-declared transitive dependencies.
     def initialize(path, load_type: nil, decryption_key: nil, store: nil,
-                   registry: nil, dependency_chain: [], bundle: nil)
+                   registry: nil, dependency_chain: [], bundle: nil,
+                   streaming: false)
       @decryption_key = decryption_key
+      @streaming = streaming
       @original_path = Pathname.new(path).expand_path
       @path = prepare_package(@original_path).to_s
       @load_type = load_type || determine_load_type(path)

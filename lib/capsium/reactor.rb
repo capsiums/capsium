@@ -66,14 +66,15 @@ module Capsium
     def initialize(package: nil, mounts: nil, port: DEFAULT_PORT,
                    cache_control: DEFAULT_CACHE_CONTROL, do_not_listen: false,
                    store: nil, deploy: nil, registry: nil, workdir: nil,
-                   read_only: false, watch: false)
+                   read_only: false, watch: false, streaming: false)
       @store = store
       @registry = registry
+      @streaming = streaming
       @workdir = workdir || Dir.mktmpdir("capsium-reactor-")
       @own_workdir = workdir.nil?
       @mounts = mounts || [Mount.new(path: Mount::ROOT_PATH, package: package,
                                      store: store, registry: registry)]
-      apply_read_only if read_only
+      apply_read_only if read_only || streaming
       @mounts.each { |mount| mount.attach_workdir(@workdir) }
       @port = port
       @cache_control = cache_control
