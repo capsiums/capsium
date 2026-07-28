@@ -24,8 +24,16 @@ module Capsium
 
       def initialize(base_url)
         super()
-        @base_url = base_url.to_s.sub(%r{/+\z}, "")
+        @base_url = strip_trailing_slashes(base_url.to_s)
         validate_scheme!(request_uri(INDEX_FILE))
+      end
+
+      # Strip every trailing '/' from a base URL (CodeQL flags %r{/+\z}
+      # as polynomial-redos-vulnerable; this non-regex chomp loop is
+      # equivalent for any realistic URL length).
+      def strip_trailing_slashes(url)
+        url = url.chomp("/") until url.empty? || !url.end_with?("/")
+        url
       end
 
       def location = base_url
