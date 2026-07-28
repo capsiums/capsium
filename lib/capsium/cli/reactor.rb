@@ -39,6 +39,10 @@ module Capsium
       option :watch, type: :boolean, default: false,
                      desc: "Watch the root mount's source tree and reload " \
                            "on file change (single-package mode only)"
+      option :streaming, type: :boolean, default: false,
+                         desc: "Read content directly from the .cap zip " \
+                               "without full extraction (read-only, " \
+                               "single-layer .cap files only)"
 
       # Thor array options are last-wins when the flag repeats; collect
       # every --mount value (both "--mount V" and "--mount=V" forms)
@@ -80,20 +84,8 @@ module Capsium
                              "arguments, --mount or --config)"
         end
 
-        mounts = Capsium::Reactor::Mount.build(
-          entries, store: options[:store], registry: options[:registry]
-        )
-        reactor = Capsium::Reactor.new(
-          mounts: mounts,
-          port: options[:port],
-          do_not_listen: options[:do_not_listen],
-          store: options[:store],
-          deploy: options[:deploy],
-          registry: options[:registry],
-          workdir: options[:workdir],
-          read_only: options[:read_only],
-          watch: options[:watch]
-        )
+        mounts = Capsium::Reactor::Mount.build(entries, **mount_build_options)
+        reactor = Capsium::Reactor.new(mounts: mounts, **reactor_options)
         reactor.serve
       rescue Capsium::Error => e
         raise Thor::Error, e.message
@@ -102,6 +94,19 @@ module Capsium
       end
 
       private
+
+      def mount_build_options
+        { store: options[:store], registry: options[:registry],
+          streaming: options[:streaming] }
+      end
+
+      def reactor_options
+        { port: options[:port], do_not_listen: options[:do_not_listen],
+          store: options[:store], deploy: options[:deploy],
+          registry: options[:registry], workdir: options[:workdir],
+          read_only: options[:read_only], watch: options[:watch],
+          streaming: options[:streaming] }
+      end
 
       # The combined mount entries from --config, --mount and the
       # positional sources (in that order), with capsium:// GUIDs

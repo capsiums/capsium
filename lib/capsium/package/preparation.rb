@@ -15,7 +15,11 @@ module Capsium
         raise Error, "Invalid package path: #{path}" unless File.file?(path)
         raise Error, "The package must have a .cap extension" unless File.extname(path) == ".cap"
 
-        decompress_cap_file(path)
+        if @streaming
+          decompress_cap_file_streaming(path)
+        else
+          decompress_cap_file(path)
+        end
       end
 
       def decompress_cap_file(file_path)
@@ -23,6 +27,55 @@ module Capsium
         FileUtils.mkdir_p(package_path)
         Packager.new.unpack(file_path, package_path)
         package_path
+      end
+
+      # Streaming extraction: unpack config files (metadata.json,
+      # manifest.json, routes.json, security.json, storage.json,
+      # authentication.json) and the structured-data/ tree to the
+      # tempdir. content/ files are read directly from the .cap via
+      # Zip::File on each request, avoiding the upfront disk write of
+      # the (potentially large) content tree. Requires that the .cap
+      # was packed (solidify ran) so manifest.json and routes.json are
+      # present (no auto-generation in streaming mode).
+      STREAMING_CONFIG_FILES = %w[
+        metadata.json manifest.json routes.json
+        security.json storage.json authentication.json
+      ].freeze
+      STREAMING_EXTRACTION_DIRS = %w[data].freeze
+
+      def decompress_cap_file_streaming(file_path)
+        require "zip"
+        package_path = File.join(Dir.mktmpdir, package_stem(file_path))
+        FileUtils.mkdir_p(package_path)
+        @zip_source_path = file_path
+        Zip::File.open(file_path) do |zip_file|
+          STREAMING_CONFIG_FILES.each do |config_file|
+            extract_zip_entry(zip_file, config_file, package_path)
+          end
+          STREAMING_EXTRACTION_DIRS.each do |dir|
+            extract_zip_subtree(zip_file, dir, package_path)
+          end
+        end
+        package_path
+      end
+
+      def extract_zip_entry(zip_file, relative_path, package_path)
+        entry = zip_file.find_entry(relative_path)
+        return unless entry
+
+        target = File.join(package_path, relative_path)
+        FileUtils.mkdir_p(File.dirname(target))
+        File.binwrite(target, entry.get_input_stream.read)
+      end
+
+      def extract_zip_subtree(zip_file, dir, package_path)
+        prefix = "#{dir}/"
+        zip_file.each do |entry|
+          next unless entry.name.start_with?(prefix)
+          next if entry.name.end_with?("/") # skip directory entries
+
+          extract_zip_entry(zip_file, entry.name, package_path)
+        end
       end
 
       # Decrypts an encrypted package (.cap file or uncompressed directory)

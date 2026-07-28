@@ -101,6 +101,12 @@ module Capsium
       end
 
       def serve_file(mount, route, request, response)
+        # Streaming mode: read directly from the .cap zip without
+        # going through the merged view filesystem path.
+        if @streaming && mount.package.zip_source_path
+          return serve_file_streaming(mount, route, request, response)
+        end
+
         content_path = mount.merged_view.resolve(route.resource)
         return respond_not_found(response) unless content_path
 
@@ -120,6 +126,22 @@ module Capsium
         response["Content-Type"] = content_type_for(mount, route, content_path)
         headers.each { |name, value| response[name] = value }
         response.body = body
+      end
+
+      def serve_file_streaming(mount, route, _request, response)
+        require "zip"
+        resource = route.resource
+        Zip::File.open(mount.package.zip_source_path) do |zip_file|
+          entry = zip_file.find_entry(resource)
+          return respond_not_found(response) unless entry
+
+          body = entry.get_input_stream.read
+          body, headers = inherited_processing(route, body, headers_for(route))
+          response.status = 200
+          response["Content-Type"] = content_type_for(mount, route, resource)
+          headers.each { |name, value| response[name] = value }
+          response.body = body
+        end
       end
 
       # Returns the path to a brotli-precompressed sidecar when the

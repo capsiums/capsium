@@ -96,11 +96,12 @@ module Capsium
       # "/<metadata.name>/") and rejects duplicate prefixes with a
       # MountConflictError. On failure every package loaded so far is
       # cleaned up again.
-      def self.build(entries, store: nil, registry: nil)
+      def self.build(entries, store: nil, registry: nil, streaming: false)
         built = []
         entries.each_with_index do |entry, index|
           package_store = entry.store || store
-          package = load_package(entry.source, package_store, registry)
+          package = load_package(entry.source, package_store, registry,
+                                 streaming: streaming)
           path = entry.path || default_path(index, package)
           built << new(path: path, package: package,
                        store: package_store, registry: registry,
@@ -115,10 +116,10 @@ module Capsium
 
       # Loads a mount source (a package directory, .cap file or an
       # already-built Package) with the given resolution context.
-      def self.load_package(source, store, registry)
+      def self.load_package(source, store, registry, streaming: false)
         return source unless source.is_a?(String)
 
-        Package.new(source, store: store, registry: registry)
+        Package.new(source, store: store, registry: registry, streaming: streaming)
       end
 
       def self.default_path(index, package)
