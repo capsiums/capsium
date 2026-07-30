@@ -43,23 +43,52 @@ module Capsium
       # writes go to the mount's APIs, everything else resolves against
       # the mount's routes. Route-level access control is enforced for
       # the addressed route in every case.
+      #
+      # Method handling: handler routes return 501 regardless of method
+      # (the reactor does not execute handlers, so POST/PUT/DELETE on a
+      # handler route is still "not implemented", not "method not
+      # allowed"). Static and dataset-read routes are GET/HEAD-only and
+      # answer 405 otherwise. Dataset CRUD and content writes route via
+      # the dedicated APIs below — but only AFTER a handler route at the
+      # same path is ruled out, so DELETE on a handler route still 501s.
       def serve_mounted_request(mount, identity, request, response)
         inner = mount.inner_path(request.path)
         return serve_data_api(mount, identity, inner, request, response) if DataApi.path?(inner)
-        if GraphqlApi.path?(inner) && mount.graphql?
-          return mount.graphql_api.handle(request, response)
-        end
-        if ContentApi.write_method?(request.request_method)
-          return serve_content_api(mount, identity, inner, request, response)
-        end
-        return respond_method_not_allowed(response) unless %w[GET
-                                                              HEAD].include?(request.request_method)
+        return serve_graphql(mount, inner, request, response) if graphql_route?(mount, inner)
 
         route = mount.routes.resolve(inner)
+        dispatch_route(mount, identity, request, response, inner, route)
+      end
+
+      # Second-stage dispatch after the route has been resolved (or not).
+      # Extracted so serve_mounted_request stays under the complexity cap.
+      def dispatch_route(mount, identity, request, response, inner, route)
+        return serve_route(mount, route, request, response) if route&.handler_route?
+        if write_method?(request)
+          return serve_content_api(mount, identity, inner, request,
+                                   response)
+        end
         return respond_not_found(response) unless route
+        return respond_method_not_allowed(response) unless read_method?(request)
         return unless authorized?(identity, route, response)
 
         serve_route(mount, route, request, response)
+      end
+
+      def graphql_route?(mount, inner)
+        GraphqlApi.path?(inner) && mount.graphql?
+      end
+
+      def write_method?(request)
+        ContentApi.write_method?(request.request_method)
+      end
+
+      def read_method?(request)
+        %w[GET HEAD].include?(request.request_method)
+      end
+
+      def serve_graphql(mount, _inner, request, response)
+        mount.graphql_api.handle(request, response)
       end
 
       def serve_data_api(mount, identity, inner, request, response)
