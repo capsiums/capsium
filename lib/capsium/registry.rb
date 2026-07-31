@@ -23,6 +23,11 @@ module Capsium
 
     INDEX_FILE = "index.json"
     ENV_VAR = "CAPSIUM_REGISTRY"
+    # The canonical public Capsium registry. Used as a fallback when
+    # neither --registry nor CAPSIUM_REGISTRY is set, so `capsium search`
+    # and `capsium info` work out of the box. Override with the env var
+    # or flag to point at a different (e.g. self-hosted) registry.
+    DEFAULT_REGISTRY_URL = "https://capsium.org/registry"
 
     # Base error for every registry failure.
     class RegistryError < Capsium::Error; end
@@ -73,10 +78,13 @@ module Capsium
       end
 
       # The registry named by the CAPSIUM_REGISTRY environment variable,
-      # or nil when unset.
+      # the public default at capsium.org/registry as fallback, or nil
+      # when CAPSIUM_REGISTRY is explicitly set to empty.
       def default
         ref = ENV.fetch(ENV_VAR, nil)
-        ref.nil? || ref.empty? ? nil : fetch(ref)
+        return nil if ref == ""
+
+        ref.nil? || ref.empty? ? fetch(DEFAULT_REGISTRY_URL) : fetch(ref)
       end
     end
 
