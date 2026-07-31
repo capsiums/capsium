@@ -7,13 +7,22 @@ require "tmpdir"
 RSpec.describe Capsium::Cli::Init do
   describe ".templates" do
     it "lists the bundled templates" do
-      expect(described_class.templates).to include("static-site", "dataset-app")
+      expect(described_class.templates)
+        .to include("static-site", "dataset-app", "blog", "quiz", "portfolio")
     end
 
     it "every template resolves to a real directory under templates/" do
       described_class.templates.each do |name|
         path = File.join(described_class::TEMPLATES_DIR, name)
         expect(File.directory?(path)).to be(true)
+      end
+    end
+
+    it "every template carries a metadata.json with the {{name}} placeholder" do
+      described_class.templates.each do |name|
+        metadata_path = File.join(described_class::TEMPLATES_DIR, name, "metadata.json")
+        expect(File.file?(metadata_path)).to be(true)
+        expect(File.read(metadata_path)).to include("{{name}}")
       end
     end
   end
@@ -29,6 +38,35 @@ RSpec.describe Capsium::Cli::Init do
         expect(File.directory?(result.path)).to be(true)
         expect(File.file?(File.join(result.path, "metadata.json"))).to be(true)
         expect(File.file?(File.join(result.path, "content", "index.html"))).to be(true)
+      end
+    end
+
+    # Every bundled template must scaffold to a structurally valid
+    # package: metadata.json with the substituted name, plus either a
+    # routes.json declaring an index route OR the auto-route-friendly
+    # content/index.html that the reactor generates routes from.
+    # Parameterized so adding a new template automatically gets coverage.
+    described_class.templates.each do |template_name|
+      it "scaffolds the #{template_name} template to a valid package shape" do
+        Dir.mktmpdir do |dir|
+          result = described_class.call(template: template_name,
+                                        name: "pkg-from-#{template_name}",
+                                        parent_dir: dir)
+          metadata = JSON.parse(File.read(File.join(result.path, "metadata.json")))
+          expect(metadata["name"]).to eq("pkg-from-#{template_name}")
+          expect(metadata["guid"]).to match(%r{\A(urn:uuid:|https?://)})
+
+          routes_path = File.join(result.path, "routes.json")
+          if File.file?(routes_path)
+            routes = JSON.parse(File.read(routes_path))
+            index_route = routes["routes"].find { |r| r["path"] == "/" }
+            expect(index_route).not_to be_nil
+          else
+            # Templates without routes.json rely on the reactor's
+            # auto-route generation from content/index.html.
+            expect(File.file?(File.join(result.path, "content", "index.html"))).to be(true)
+          end
+        end
       end
     end
 

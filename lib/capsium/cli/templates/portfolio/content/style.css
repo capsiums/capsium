@@ -1,0 +1,9 @@
+body { font: 17px/1.6 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1.5rem; color: #1a1a1a; }
+header { display: flex; gap: 1.5rem; align-items: center; margin-bottom: 2rem; }
+header img { border-radius: 50%; background: #e1e1e8; }
+.tagline { color: #666; margin: 0.25rem 0 0; font-style: italic; }
+main h2 { border-bottom: 1px solid #e1e1e8; padding-bottom: 0.25rem; }
+.project { padding: 1rem 0; border-bottom: 1px solid #e1e1e8; }
+.project h3 { margin: 0 0 0.25rem; }
+.project .meta { color: #888; font-size: 0.85rem; margin: 0 0 0.5rem; }
+.tag { display: inline-block; background: #eee; padding: 0.1rem 0.5rem; border-radius: 3px; font-size: 0.75rem; margin-right: 0.25rem; }
