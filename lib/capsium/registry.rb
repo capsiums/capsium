@@ -54,6 +54,11 @@ module Capsium
       def cap_file_name = "#{name}-#{version}.cap"
     end
 
+    # One catalog row for `capsium search` / `capsium info`: the GUID,
+    # display name, and the raw per-version metadata straight out of
+    # index.json (file / sha256 / size).
+    CatalogEntry = Data.define(:guid, :name, :versions)
+
     class << self
       # The registry at the given reference: a Local directory or a
       # Remote http(s) base URL. Raises RegistryNotConfiguredError when
@@ -112,6 +117,16 @@ module Capsium
     # Only Local registries are writable; Remote overrides nothing.
     def push(_cap_path)
       raise RegistryError, "registry is read-only: #{location}"
+    end
+
+    # The catalog of every indexed package (registry.capsium.org and
+    # equivalent UIs + the `capsium search` / `capsium info` CLI commands
+    # read this). Each entry: { guid:, name:, versions: { version => meta } }.
+    # Sorted by name for stable display.
+    def catalog
+      packages.map do |guid, listing|
+        CatalogEntry.new(guid: guid, name: listing["name"], versions: listing["versions"])
+      end.sort_by(&:name)
     end
 
     private

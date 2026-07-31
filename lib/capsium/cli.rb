@@ -62,7 +62,56 @@ module Capsium
       raise Thor::Error, e.message
     end
 
+    desc "search [QUERY]", "List packages in the registry (optional fuzzy filter)"
+    option :registry, type: :string,
+                      desc: "Registry directory or https base URL " \
+                            "(default: CAPSIUM_REGISTRY)"
+    def search(query = nil)
+      entries = registry_list
+      filtered = query ? entries.select { |e| e[:name].include?(query) } : entries
+      if filtered.empty?
+        puts query ? "No packages match #{query.inspect}." : "Registry is empty."
+        return
+      end
+      filtered.each do |entry|
+        versions = entry[:versions].keys.sort.join(", ")
+        puts "#{entry[:name].ljust(28)}  #{versions}  #{entry[:guid]}"
+      end
+    end
+
+    desc "info GUID", "Show detailed info about one registry package"
+    option :registry, type: :string,
+                      desc: "Registry directory or https base URL " \
+                            "(default: CAPSIUM_REGISTRY)"
+    def info(guid)
+      entry = registry_list.find { |e| e[:guid] == guid || e[:name] == guid }
+      raise Thor::Error, "no package #{guid} in registry #{registry_location}" unless entry
+
+      puts "name:     #{entry[:name]}"
+      puts "guid:     #{entry[:guid]}"
+      puts "versions:"
+      entry[:versions].sort.each do |version, meta|
+        puts "  #{version}:"
+        puts "    file:    #{meta['file']}"
+        puts "    sha256:  #{meta['sha256']}"
+        puts "    size:    #{meta['size']} bytes"
+      end
+    end
+
     private
+
+    def registry_list
+      registry = Capsium::Registry.fetch(options[:registry] || ENV.fetch("CAPSIUM_REGISTRY", nil))
+      registry.catalog.map { |e| { name: e.name, guid: e.guid, versions: e.versions } }
+    rescue Capsium::Registry::RegistryError => e
+      raise Thor::Error, e.message
+    end
+
+    def registry_location
+      Capsium::Registry.fetch(options[:registry] || ENV.fetch("CAPSIUM_REGISTRY", nil)).location
+    rescue Capsium::Registry::RegistryError
+      "(unknown registry)"
+    end
 
     def diff_to_h(report)
       {
