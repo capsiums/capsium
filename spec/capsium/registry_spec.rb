@@ -85,10 +85,23 @@ RSpec.describe Capsium::Registry do
   end
 
   describe ".default" do
-    it "reads CAPSIUM_REGISTRY and stays nil when unset" do
-      expect(described_class.default).to be_nil
+    it "falls back to the canonical public registry when CAPSIUM_REGISTRY is unset" do
+      ENV.delete("CAPSIUM_REGISTRY")
+      expect(described_class.default).to be_a(Capsium::Registry::Remote)
+      expect(described_class.default.location)
+        .to eq(Capsium::Registry::DEFAULT_REGISTRY_URL)
+    end
+
+    it "reads CAPSIUM_REGISTRY when set" do
       ENV["CAPSIUM_REGISTRY"] = workdir
       expect(described_class.default).to be_a(Capsium::Registry::Local)
+    ensure
+      ENV.delete("CAPSIUM_REGISTRY")
+    end
+
+    it "stays nil when CAPSIUM_REGISTRY is explicitly empty" do
+      ENV["CAPSIUM_REGISTRY"] = ""
+      expect(described_class.default).to be_nil
     ensure
       ENV.delete("CAPSIUM_REGISTRY")
     end

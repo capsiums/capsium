@@ -101,14 +101,21 @@ module Capsium
     private
 
     def registry_list
-      registry = Capsium::Registry.fetch(options[:registry] || ENV.fetch("CAPSIUM_REGISTRY", nil))
       registry.catalog.map { |e| { name: e.name, guid: e.guid, versions: e.versions } }
     rescue Capsium::Registry::RegistryError => e
       raise Thor::Error, e.message
     end
 
+    # The registry to query: --registry flag, else CAPSIUM_REGISTRY,
+    # else the public default at capsium.org/registry.
+    def registry
+      ref = options[:registry] || ENV.fetch("CAPSIUM_REGISTRY", nil)
+      url = ref.nil? || ref.empty? ? Capsium::Registry::DEFAULT_REGISTRY_URL : ref
+      Capsium::Registry.fetch(url)
+    end
+
     def registry_location
-      Capsium::Registry.fetch(options[:registry] || ENV.fetch("CAPSIUM_REGISTRY", nil)).location
+      registry.location
     rescue Capsium::Registry::RegistryError
       "(unknown registry)"
     end
