@@ -1,0 +1,4 @@
+[
+  { "id": "q1", "text": "Sample question 1?", "options": ["A", "B", "C", "D"], "answer": 0 },
+  { "id": "q2", "text": "Sample question 2?", "options": ["A", "B", "C", "D"], "answer": 1 }
+]

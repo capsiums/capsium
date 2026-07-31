@@ -1,0 +1,10 @@
+{
+  "index": "content/index.html",
+  "routes": [
+    { "path": "/", "resource": "content/index.html" },
+    { "path": "/style.css", "resource": "content/style.css" },
+    { "path": "/portfolio.js", "resource": "content/portfolio.js" },
+    { "path": "/avatar.svg", "resource": "content/images/avatar.svg" },
+    { "path": "/api/v1/data/projects", "dataset": "projects" }
+  ]
+}

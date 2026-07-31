@@ -1,0 +1,11 @@
+{
+  "index": "content/index.html",
+  "routes": [
+    { "path": "/", "resource": "content/index.html" },
+    { "path": "/index.html", "resource": "content/index.html" },
+    { "path": "/post/first-post", "resource": "content/posts/first-post.html" },
+    { "path": "/style.css", "resource": "content/style.css" },
+    { "path": "/blog.js", "resource": "content/blog.js" },
+    { "path": "/api/v1/data/posts", "dataset": "posts" }
+  ]
+}

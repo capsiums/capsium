@@ -1,0 +1,11 @@
+{
+  "index": "content/index.html",
+  "routes": [
+    { "path": "/", "resource": "content/index.html" },
+    { "path": "/style.css", "resource": "content/style.css" },
+    { "path": "/quiz.js", "resource": "content/quiz.js" },
+    { "path": "/api/v1/data/questions", "dataset": "questions" },
+    { "path": "/api/v1/data/scores", "dataset": "scores" },
+    { "path": "/api/v1/handler/score", "method": "POST", "handler": "handlers/score.js" }
+  ]
+}

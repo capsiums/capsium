@@ -1,0 +1,8 @@
+{
+  "storage": {
+    "dataSets": {
+      "questions": { "source": "data/questions.json" },
+      "scores": { "source": "data/scores.json" }
+    }
+  }
+}

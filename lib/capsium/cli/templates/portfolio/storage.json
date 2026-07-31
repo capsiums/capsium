@@ -1,0 +1,7 @@
+{
+  "storage": {
+    "dataSets": {
+      "projects": { "source": "data/projects.json" }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "storage": {
+    "dataSets": {
+      "posts": {
+        "source": "data/posts.yaml"
+      }
+    }
+  }
+}

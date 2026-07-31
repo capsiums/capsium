@@ -1,0 +1,10 @@
+[
+  {
+    "id": "project-one",
+    "title": "Project One",
+    "year": 2026,
+    "role": "Lead",
+    "summary": "Replace this with a real project description.",
+    "tags": ["sample"]
+  }
+]
