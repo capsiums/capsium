@@ -1,0 +1,11 @@
+{
+  "index": "content/index.html",
+  "routes": [
+    { "path": "/", "resource": "content/index.html" },
+    { "path": "/style.css", "resource": "content/style.css" },
+    { "path": "/gallery.js", "resource": "content/gallery.js" },
+    { "path": "/photos/p1.svg", "resource": "content/photos/p1.svg" },
+    { "path": "/photos/p2.svg", "resource": "content/photos/p2.svg" },
+    { "path": "/api/v1/data/photos", "dataset": "photos" }
+  ]
+}

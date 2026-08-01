@@ -1,0 +1,7 @@
+{
+  "storage": {
+    "dataSets": {
+      "toc": { "source": "data/toc.json" }
+    }
+  }
+}

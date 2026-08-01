@@ -8,7 +8,8 @@ RSpec.describe Capsium::Cli::Init do
   describe ".templates" do
     it "lists the bundled templates" do
       expect(described_class.templates)
-        .to include("static-site", "dataset-app", "blog", "quiz", "portfolio")
+        .to include("static-site", "dataset-app", "blog", "quiz", "portfolio",
+                    "docs-site", "photo-gallery")
     end
 
     it "every template resolves to a real directory under templates/" do
