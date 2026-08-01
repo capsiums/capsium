@@ -1,0 +1,10 @@
+body { font: 16px/1.6 system-ui, sans-serif; margin: 0; color: #1a1a1a; display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+aside { background: #f6f8fa; padding: 1.5rem; border-right: 1px solid #e1e1e8; }
+aside h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin: 0.75rem 0 0.35rem; }
+aside a { display: block; color: #444; text-decoration: none; padding: 0.2rem 0; font-size: 0.95rem; }
+aside a:hover { color: indigo; }
+main { padding: 2rem 3rem; max-width: 760px; }
+main a { color: indigo; }
+main pre { background: #f6f8fa; padding: 1rem; overflow-x: auto; border-radius: 4px; }
+main code { background: #f6f8fa; padding: 0.1rem 0.3rem; border-radius: 3px; }
+@media (max-width: 760px) { body { grid-template-columns: 1fr; } }

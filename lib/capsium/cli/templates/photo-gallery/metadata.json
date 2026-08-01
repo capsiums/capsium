@@ -1,0 +1,8 @@
+{
+  "name": "{{name}}",
+  "version": "0.1.0",
+  "guid": "urn:uuid:{{uuid}}",
+  "uuid": "{{uuid}}",
+  "description": "An image gallery scaffold: photos as static assets + JSON dataset of titles/tags, filterable in-browser.",
+  "license": "MIT"
+}

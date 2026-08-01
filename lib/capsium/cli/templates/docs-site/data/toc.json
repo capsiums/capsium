@@ -1,0 +1,4 @@
+[
+  { "id": "intro",    "title": "Introduction",  "path": "/docs/intro",    "section": "Getting started", "order": 1 },
+  { "id": "usage",    "title": "Usage",         "path": "/docs/usage",    "section": "Getting started", "order": 2 }
+]

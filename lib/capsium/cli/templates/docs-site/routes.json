@@ -1,0 +1,11 @@
+{
+  "index": "content/index.html",
+  "routes": [
+    { "path": "/", "resource": "content/index.html" },
+    { "path": "/style.css", "resource": "content/style.css" },
+    { "path": "/nav.js", "resource": "content/nav.js" },
+    { "path": "/docs/intro", "resource": "content/pages/intro.html" },
+    { "path": "/docs/usage", "resource": "content/pages/usage.html" },
+    { "path": "/api/v1/data/toc", "dataset": "toc" }
+  ]
+}

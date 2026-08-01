@@ -1,0 +1,4 @@
+[
+  { "id": "p1", "title": "First photo",  "src": "/photos/p1.svg", "width": 600, "height": 400, "tags": ["sample"] },
+  { "id": "p2", "title": "Second photo", "src": "/photos/p2.svg", "width": 600, "height": 400, "tags": ["sample"] }
+]
