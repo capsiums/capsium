@@ -45,19 +45,18 @@ module Capsium
       raise Thor::Error, e.message
     end
 
-    desc "install GUID", "Install a package from a registry into the package store"
+    desc "install NAME_OR_GUID", "Install a package from a registry into the package store"
     option :constraint, type: :string, default: "*",
                         desc: "Semver constraint the installed version must satisfy"
     option :registry, type: :string,
                       desc: "Registry directory or https base URL " \
-                            "(default: CAPSIUM_REGISTRY)"
+                            "(default: capsium.org/registry)"
     option :store, type: :string,
                    desc: "Package store directory (default: CAPSIUM_STORE)"
 
-    def install(guid)
-      registry = Capsium::Registry.fetch(options[:registry] || ENV.fetch("CAPSIUM_REGISTRY", nil))
-      path = registry.install(guid, options[:constraint], store: store_dir!)
-      puts "Installed #{guid} to #{path}"
+    def install(name_or_guid)
+      path = registry.install(name_or_guid, options[:constraint], store: store_dir!)
+      puts "Installed #{name_or_guid} to #{path}"
     rescue Capsium::Registry::RegistryError => e
       raise Thor::Error, e.message
     end

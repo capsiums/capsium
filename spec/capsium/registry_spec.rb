@@ -184,6 +184,18 @@ RSpec.describe Capsium::Registry do
           .to raise_error(Capsium::Registry::UnsatisfiableConstraintError,
                           />=9\.0\.0/)
       end
+
+      it "resolves by package name when given a name instead of a guid" do
+        expect(registry.resolve("story-of-claire").version.to_s).to eq("2.0.0")
+      end
+
+      it "guid_for returns the matching guid for a known name" do
+        expect(registry.guid_for("story-of-claire")).to eq(guid)
+      end
+
+      it "guid_for passes through unknown identifiers unchanged" do
+        expect(registry.guid_for("https://example.com/unknown")).to eq("https://example.com/unknown")
+      end
     end
 
     describe "#install" do
