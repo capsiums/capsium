@@ -98,10 +98,16 @@ module Capsium
 
     # The newest indexed version of the package GUID satisfying the
     # semver constraint (default "*"). Raises PackageNotFoundError or
-    # UnsatisfiableConstraintError.
-    def resolve(guid, constraint = "*")
+    # UnsatisfiableConstraintError. Accepts either the package's guid
+    # (exact match against the index keys) OR its name (the human-
+    # friendly form recorded in each package's metadata.json).
+    def resolve(guid_or_name, constraint = "*")
+      guid = guid_for(guid_or_name)
       listing = packages[guid]
-      raise PackageNotFoundError, "no package #{guid} in registry #{location}" if listing.nil?
+      if listing.nil?
+        raise PackageNotFoundError,
+              "no package #{guid_or_name} in registry #{location}"
+      end
 
       versions = listing_versions(guid, listing)
       range = Package::VersionRange.parse(constraint)
@@ -114,12 +120,23 @@ module Capsium
     # Resolves the newest satisfying version, fetches its .cap (verifying
     # the sha256 declared in the index) and installs it into the package
     # store as "<name>-<version>.cap". Returns the installed store path.
-    def install(guid, constraint = "*", store:)
-      entry = resolve(guid, constraint)
+    # Accepts guid OR name (see #resolve).
+    def install(guid_or_name, constraint = "*", store:)
+      entry = resolve(guid_or_name, constraint)
       with_entry_file(entry) do |path|
         verify_checksum!(entry, path)
         store_for(store).install(path, guid: entry.guid, file_name: entry.cap_file_name)
       end
+    end
+
+    # Lookup a package's guid from its name. Returns the input
+    # unchanged when it already matches a guid (no extra work) so the
+    # common "install by guid" path stays one index lookup.
+    def guid_for(guid_or_name)
+      return guid_or_name if packages.key?(guid_or_name)
+
+      match = packages.find { |_, listing| listing["name"] == guid_or_name }
+      match&.first || guid_or_name
     end
 
     # Only Local registries are writable; Remote overrides nothing.
