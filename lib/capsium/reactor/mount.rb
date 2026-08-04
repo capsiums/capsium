@@ -242,6 +242,15 @@ module Capsium
         @graphql_api = nil
         @package = Package.new(@package.path, store: @store, registry: @registry)
       end
+
+      # Swaps the mount to a different source .cap (e.g. a saved
+      # version from VersionHistory) and reloads. The overlay survives
+      # so subsequent writes still work; reads come from the new base.
+      def swap_source(cap_path)
+        @merged_view = nil
+        @graphql_api = nil
+        @package = Package.new(cap_path, store: @store, registry: @registry)
+      end
     end
   end
 end

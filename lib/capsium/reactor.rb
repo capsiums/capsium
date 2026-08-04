@@ -40,6 +40,7 @@ module Capsium
     autoload :Responses, "capsium/reactor/responses"
     autoload :Serving, "capsium/reactor/serving"
     autoload :Session, "capsium/reactor/session"
+    autoload :VersionHistory, "capsium/reactor/version_history"
 
     include Responses
     include Endpoints
@@ -48,6 +49,13 @@ module Capsium
     DEFAULT_PORT = 8864
     DEFAULT_CACHE_CONTROL = "public, max-age=31536000"
     PACKAGE_SAVE_PATTERN = %r{\A/package/(?<name>[^/]+)/save\z}
+    PACKAGE_VERSIONS_PATTERN = %r{\A/package/(?<name>[^/]+)/versions\z}
+    PACKAGE_ROLLBACK_PATTERN = %r{\A/package/(?<name>[^/]+)/rollback\z}
+    PACKAGE_LIFECYCLE_PATTERNS = [
+      PACKAGE_SAVE_PATTERN,
+      PACKAGE_VERSIONS_PATTERN,
+      PACKAGE_ROLLBACK_PATTERN
+    ].freeze
 
     attr_reader :package, :package_path, :routes, :port, :cache_control,
                 :server, :server_thread, :introspection, :authenticator,
@@ -214,12 +222,27 @@ module Capsium
       identity = @authenticator.authenticate(request)
       return @authenticator.challenge(response) if @authenticator.enabled? && identity.nil?
       return serve_introspection(request, response) if @introspection.endpoint?(request.path)
-      return serve_package_save(request, response) if PACKAGE_SAVE_PATTERN.match?(request.path)
+      return serve_package_lifecycle(request, response) if package_lifecycle?(request.path)
 
       mount = resolve_mount(request.path)
       return respond_not_found(response) unless mount
 
       serve_mounted_request(mount, identity, request, response)
+    end
+
+    # Dispatches the per-package lifecycle endpoints (save, versions,
+    # rollback). One router for all three keeps dispatch_request under
+    # the complexity cap.
+    def package_lifecycle?(path)
+      PACKAGE_LIFECYCLE_PATTERNS.any? { |pattern| pattern.match?(path) }
+    end
+
+    def serve_package_lifecycle(request, response)
+      case request.path
+      when PACKAGE_SAVE_PATTERN then serve_package_save(request, response)
+      when PACKAGE_VERSIONS_PATTERN then serve_package_versions(request, response)
+      when PACKAGE_ROLLBACK_PATTERN then serve_package_rollback(request, response)
+      end
     end
   end
 end
